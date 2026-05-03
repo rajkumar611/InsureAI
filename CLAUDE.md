@@ -41,26 +41,47 @@ QBE Insurance NZ) as a portfolio project targeting senior AI engineering roles i
 | `tests/api/test_health.py` | Health endpoint test |
 | `tests/api/test_submissions.py` | Submission create + get tests |
 
-### EMPTY SCAFFOLDING — folders exist, no real code yet
+### DONE TODAY — new files with real working code
+
+| File | What it does |
+|---|---|
+| `src/qbe_underwriting/platform/llm/client.py` | Shared async Anthropic client + `MODEL_FOR_AGENT` routing dict |
+| `src/qbe_underwriting/platform/cost_tracking/pricing.py` | Real cost calc from Anthropic token counts |
+| `src/qbe_underwriting/platform/cost_tracking/middleware.py` | Writes cost to `cost_ledger` table after every LLM call |
+| `src/qbe_underwriting/platform/cost_tracking/dashboard.py` | Streamlit cost dashboard for finance team |
+| `src/qbe_underwriting/pipeline/document_ingestion_agent/agent.py` | **First working agent** — calls Claude Haiku, validates with Pydantic |
+| `samples/documents/*.txt` | 4 sample broker documents (happy path, high risk, missing fields, prompt injection) |
+| `scripts/run_ingestion.py` | Developer test script — run any sample through the agent |
+
+### BUGS FIXED TODAY
+- `PromptRegistry` PROMPTS_ROOT was `parents[2]` → fixed to `parents[4]` (project root)
+- Claude wraps JSON in ```json fences despite prompt — fixed with `_strip_markdown_fences()` in agent
+- `security_features: null` from LLM failed Pydantic — fixed with `NullableList = Annotated[list[str], BeforeValidator(lambda v: v or [])]`
+
+### TEST RESULTS — all 4 samples passing
+| Sample | Confidence | Result |
+|---|---|---|
+| `harbour_fresh` | high | All fields extracted correctly |
+| `high_risk` | high | Flood zone + 4 claims extracted correctly |
+| `missing_fields` | medium | 12 missing fields identified, 3 anomalies flagged |
+| `prompt_injection` | high | Both injection attempts flagged in anomalies, not executed |
+
+### EMPTY SCAFFOLDING — still to build
 
 | Folder | What needs to be built |
 |---|---|
-| `src/qbe_underwriting/pipeline/*/` | Each agent needs `agent.py` — the actual LLM call + Pydantic validation |
+| `src/qbe_underwriting/pipeline/claims_history_agent/` | `agent.py` — RAG over claims DB using pgvector |
+| `src/qbe_underwriting/pipeline/hazard_evaluation_agent/` | `agent.py` — property/environmental risk scoring |
+| `src/qbe_underwriting/pipeline/underwriting_risk_agent/` | `agent.py` — synthesise all inputs → Accept/Decline/Refer |
+| `src/qbe_underwriting/pipeline/human_in_the_loop/` | `agent.py` — underwriter review queue |
+| `src/qbe_underwriting/pipeline/pricing_agent/` | `agent.py` — premium calculation |
 | `src/qbe_underwriting/platform/security/` | `sanitiser.py` — code-level prompt injection filter |
-| `src/qbe_underwriting/platform/observability/` | `audit_writer.py` — append-only decision logger, OpenTelemetry traces |
-| `src/qbe_underwriting/platform/cost_tracking/` | `middleware.py` — token metering, cost attribution per agent/policy |
-| `src/qbe_underwriting/platform/orchestration/` | `workflow.py` — LangGraph state machine wiring all agents together |
+| `src/qbe_underwriting/platform/observability/` | `audit_writer.py` — append-only decision logger |
+| `src/qbe_underwriting/platform/orchestration/` | `workflow.py` — LangGraph state machine |
 
-### NEXT TASK — write the first agent
-**`src/qbe_underwriting/pipeline/document_ingestion_agent/agent.py`**
-
-This is the first real LLM-calling code. It should:
-1. Accept `submission_id`, `class_of_business`, `document_content`
-2. Load prompt via `PromptRegistry.load("document_ingestion_agent")`
-3. Call Claude Haiku (cheap — extraction only)
-4. Parse JSON response into `SubmissionData` Pydantic schema
-5. On `ValidationError` → retry once, then raise
-6. Return `SubmissionData`
+### NEXT TASK — two options, discuss with Raj
+**Option A:** Build `claims_history_agent/agent.py` — RAG query over seeded claims data
+**Option B:** Wire up FastAPI submission endpoint to trigger the pipeline — gives a proper HTTP entry point
 
 ---
 

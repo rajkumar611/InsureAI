@@ -1,7 +1,12 @@
 from __future__ import annotations
+
 from decimal import Decimal
-from typing import Literal
-from pydantic import BaseModel, Field
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, BeforeValidator, Field
+
+# LLMs sometimes return null for list fields — coerce to empty list
+NullableList = Annotated[list[str], BeforeValidator(lambda v: v or [])]
 
 
 class SubmissionData(BaseModel):
@@ -18,7 +23,7 @@ class SubmissionData(BaseModel):
     number_of_storeys: int | None = None
     gross_floor_area_sqm: float | None = None
     occupancy_type: str | None = None
-    security_features: list[str] = Field(default_factory=list)
+    security_features: NullableList = Field(default_factory=list)
     sum_insured: Decimal | None = None
     sum_insured_currency: str | None = None
     coverage_type: str | None = None
@@ -29,10 +34,10 @@ class SubmissionData(BaseModel):
     declared_largest_loss: Decimal | None = None
     declared_largest_loss_currency: str | None = None
     declared_claims_description: str | None = None
-    document_types_identified: list[str] = Field(default_factory=list)
+    document_types_identified: NullableList = Field(default_factory=list)
     confirmed_class_of_business: Literal[
         "property", "liability", "marine", "motor", "specialty", "mixed", "unknown"
     ] = "unknown"
     extraction_confidence: Literal["high", "medium", "low"] = "low"
-    anomalies: list[str] = Field(default_factory=list)
-    missing_required_fields: list[str] = Field(default_factory=list)
+    anomalies: NullableList = Field(default_factory=list)
+    missing_required_fields: NullableList = Field(default_factory=list)
