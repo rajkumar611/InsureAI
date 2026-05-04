@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from qbe_underwriting.platform.database.connection import engine
 from qbe_underwriting.platform.database.models import Base
-from qbe_underwriting.api.routers import submissions, health
+from qbe_underwriting.api.routers import submissions, health, pipeline
 
 
 @asynccontextmanager
@@ -32,3 +32,4 @@ app.add_middleware(
 
 app.include_router(health.router, tags=["health"])
 app.include_router(submissions.router, prefix="/api/v1", tags=["submissions"])
+app.include_router(pipeline.router, prefix="/api/v1", tags=["pipeline"])

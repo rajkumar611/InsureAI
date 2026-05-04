@@ -4,8 +4,8 @@
 Enterprise-grade multi-agent AI system for insurance underwriting. Built by Raj (Lead Developer,
 QBE Insurance NZ) as a portfolio project targeting senior AI engineering roles in Singapore.
 
-**GitHub:** https://github.com/rajkumar611/QBE-AI-UNDERWRITING.git
-**Root:** C:\Users\QBE\Downloads\QBE-AI-UNDERWRITING
+**GitHub:** https://github.com/rajkumar611/AI_UNDERWRITING_SYSTEMS.git
+**Root:** C:\Users\QBE\Downloads\AI_UNDERWRITING_SYSTEMS
 
 ## About the Developer
 - **Raj** — 15+ years IT experience, Lead Developer at QBE Insurance NZ since 2018
@@ -157,7 +157,7 @@ uv run pytest
 ## Folder Structure
 
 ```
-QBE-AI-UNDERWRITING/
+AI_UNDERWRITING_SYSTEMS/
 ├── main.py                            ← FastAPI entry point (uvicorn main:app)
 ├── pyproject.toml                     ← all deps + tooling (pytest, ruff, mypy)
 ├── alembic.ini                        ← script_location=alembic, prepend_sys_path=src

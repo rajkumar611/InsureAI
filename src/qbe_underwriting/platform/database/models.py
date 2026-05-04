@@ -99,6 +99,10 @@ class Submission(Base):
     status: Mapped[str] = mapped_column(String(32), default="RECEIVED")
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     raw_document_paths: Mapped[dict | None] = mapped_column(JSONB)
+    extracted_data: Mapped[dict | None] = mapped_column(JSONB)
+    ingestion_confidence: Mapped[str | None] = mapped_column(String(16))
+    ingestion_anomalies: Mapped[list | None] = mapped_column(JSONB)
+    missing_fields: Mapped[list | None] = mapped_column(JSONB)
 
     customer: Mapped[Customer | None] = relationship(back_populates="submissions")
     workflow: Mapped[Workflow | None] = relationship(back_populates="submission", uselist=False)

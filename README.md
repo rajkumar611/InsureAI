@@ -49,8 +49,8 @@ See [docs/architecture/end-to-end-flow.md](docs/architecture/end-to-end-flow.md)
 
 ```bash
 # 1. Clone
-git clone https://github.com/rajkumar611/QBE-AI-UNDERWRITING.git
-cd QBE-AI-UNDERWRITING
+git clone https://github.com/rajkumar611/AI_UNDERWRITING_SYSTEMS.git
+cd AI_UNDERWRITING_SYSTEMS
 
 # 2. Configure
 cp .env.example .env
@@ -78,7 +78,7 @@ Cost dashboard at: http://localhost:8501
 ## Project Structure
 
 ```
-QBE-AI-UNDERWRITING/
+AI_UNDERWRITING_SYSTEMS/
 ├── CLAUDE.md                    ← Claude Code session guide
 ├── README.md                    ← this file
 ├── pyproject.toml               ← dependencies and tooling config
