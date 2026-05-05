@@ -1,4 +1,4 @@
-# Prompt Templates — QBE-AI-Underwriting
+# Prompt Templates — AI-Underwriting-System
 
 ## Convention
 

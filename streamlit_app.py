@@ -1,5 +1,5 @@
 """
-QBE AI Underwriting — Underwriter UI
+AI Underwriting System — Underwriter UI
 
 Run with:
     uv run streamlit run streamlit_app.py
@@ -16,7 +16,7 @@ API_BASE = os.getenv("API_BASE", "http://localhost:8081/api/v1")
 TIMEOUT = 300  # seconds — pipeline can take 2-3 minutes
 
 st.set_page_config(
-    page_title="QBE AI Underwriting",
+    page_title="AI Underwriting System",
     page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -24,7 +24,7 @@ st.set_page_config(
 
 # ── Sidebar navigation ────────────────────────────────────────────────────────
 
-st.sidebar.title("QBE AI Underwriting")
+st.sidebar.title("AI Underwriting System")
 st.sidebar.caption("Enterprise Multi-Agent System")
 page = st.sidebar.radio(
     "Navigation",

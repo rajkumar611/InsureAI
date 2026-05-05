@@ -20,7 +20,7 @@ from qbe_underwriting.platform.orchestration.prompt_registry import PromptRegist
 logger = logging.getLogger(__name__)
 
 AGENT_NAME = "governance_agent"
-COMPLIANCE_RULES_VERSION = "QBE-COMPLIANCE-NZ-AU-2024-v1"
+COMPLIANCE_RULES_VERSION = "AI-UW-COMPLIANCE-NZ-AU-2024-v1"
 MAX_RETRIES = 2
 
 

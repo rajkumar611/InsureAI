@@ -1,4 +1,4 @@
-# QBE-AI-Underwriting
+# AI Underwriting System
 
 Enterprise-grade multi-agent AI system for insurance underwriting. Built with Python, LangGraph, Claude (Anthropic), FastAPI, and PostgreSQL.
 

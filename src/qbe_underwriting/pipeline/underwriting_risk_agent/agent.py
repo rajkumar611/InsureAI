@@ -18,7 +18,7 @@ from qbe_underwriting.platform.orchestration.prompt_registry import PromptRegist
 logger = logging.getLogger(__name__)
 
 AGENT_NAME = "underwriting_risk_agent"
-GUIDELINES_VERSION = "QBE-NZ-AU-2024-v1"
+GUIDELINES_VERSION = "AI-UW-NZ-AU-2024-v1"
 MAX_RETRIES = 2
 
 _FIFTY_MILLION = Decimal("50000000")

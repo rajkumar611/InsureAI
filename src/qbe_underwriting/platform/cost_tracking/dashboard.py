@@ -42,8 +42,8 @@ def load_cost_data() -> pd.DataFrame:
 
 
 def main() -> None:
-    st.set_page_config(page_title="QBE AI Cost Dashboard", layout="wide")
-    st.title("QBE AI Underwriting — LLM Cost Dashboard")
+    st.set_page_config(page_title="AI Underwriting System — Cost Dashboard", layout="wide")
+    st.title("AI Underwriting System — LLM Cost Dashboard")
 
     try:
         df = load_cost_data()

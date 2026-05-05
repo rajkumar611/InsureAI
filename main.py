@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="QBE AI Underwriting",
+    title="AI Underwriting System",
     description="Enterprise multi-agent AI underwriting system",
     version="1.0.0",
     lifespan=lifespan,

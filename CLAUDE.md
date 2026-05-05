@@ -1,4 +1,4 @@
-# QBE-AI-Underwriting — Claude Code Project Guide
+# AI_UNDERWRITING_SYSTEMS — Claude Code Project Guide
 
 ## Project Overview
 Enterprise-grade multi-agent AI system for insurance underwriting. Built by Raj (Lead Developer,
@@ -6,6 +6,7 @@ QBE Insurance NZ) as a portfolio project targeting senior AI engineering roles i
 
 **GitHub:** https://github.com/rajkumar611/AI_UNDERWRITING_SYSTEMS.git
 **Root:** C:\Users\QBE\Downloads\AI_UNDERWRITING_SYSTEMS
+**Local folder:** C:\Users\QBE\Downloads\qbe-ai-underwriting
 
 ## About the Developer
 - **Raj** — 15+ years IT experience, Lead Developer at QBE Insurance NZ since 2018
@@ -17,112 +18,57 @@ QBE Insurance NZ) as a portfolio project targeting senior AI engineering roles i
 
 ---
 
-## Current Implementation Status
+## Current Implementation Status — ALL AGENTS COMPLETE
 
-### DONE — these files have real, working code
+Every agent, the LangGraph workflow, the FastAPI pipeline endpoints, and the Streamlit UI are
+fully built and tested end-to-end.
 
-| File / Folder | What it contains |
-|---|---|
-| `src/qbe_underwriting/platform/database/models.py` | 10 SQLAlchemy ORM models: Customer, Submission, Workflow, Policy, Claim, ClaimsEmbedding, AuditEntry, CostEntry, Regulation, UnderwriterQueueItem |
-| `src/qbe_underwriting/platform/database/connection.py` | Async SQLAlchemy engine, session factory, `get_session` dependency |
-| `src/qbe_underwriting/platform/orchestration/prompt_registry.py` | Loads versioned prompts from `prompts/`, renders `{{VARIABLE}}` placeholders, cached |
-| `src/qbe_underwriting/pipeline/*/schemas.py` | Pydantic v2 output schemas for all 6 pipeline agents |
-| `src/qbe_underwriting/platform/governance_agent/schemas.py` | `GovernanceDecision` Pydantic schema |
-| `src/qbe_underwriting/platform/compliance_agent/schemas.py` | `ComplianceResult` Pydantic schema |
-| `src/qbe_underwriting/api/routers/health.py` | GET /health |
-| `src/qbe_underwriting/api/routers/submissions.py` | POST /api/v1/submissions, GET /api/v1/submissions/{id} |
-| `main.py` | FastAPI app with lifespan, CORS, routers wired up |
-| `alembic/versions/` | 3 migrations: 0001 initial schema, 0002 resize vector 1536→384, 0003 customers/policies/claims |
-| `scripts/seed_data.py` | Seeds 15 customers, 15 claims, 15 embeddings, 8 regulations using sentence-transformers |
-| `prompts/*/v1.0.md` | Versioned system prompts for all 7 agents (document_ingestion, claims_history, hazard_evaluation, underwriting_risk, pricing, governance, compliance) |
-| `tests/conftest.py` | pytest fixtures: test DB, session, async HTTP client |
-| `tests/pipeline/test_schemas.py` | Pydantic schema validation tests (no DB, no LLM) |
-| `tests/platform/test_schemas.py` | Governance + compliance schema tests |
-| `tests/api/test_health.py` | Health endpoint test |
-| `tests/api/test_submissions.py` | Submission create + get tests |
+### Pipeline Agents (all in `src/qbe_underwriting/pipeline/`)
 
-### DONE TODAY — new files with real working code
+| Agent | File | Status | Notes |
+|---|---|---|---|
+| Document Ingestion | `document_ingestion_agent/agent.py` | DONE | Claude Haiku, Pydantic validation, prompt-injection detection |
+| Claims History | `claims_history_agent/agent.py` | DONE | RAG via pgvector, customer match → benchmark fallback |
+| Hazard Evaluation | `hazard_evaluation_agent/agent.py` | DONE | NZ/AU keyword lookup for seismic/flood/fire zones |
+| Underwriting Risk | `underwriting_risk_agent/agent.py` | DONE | Deterministic pre-screen + Claude Sonnet synthesis |
+| Human-in-the-Loop | `human_in_the_loop/agent.py` | DONE | Queue enqueue, SLA, decision recording |
+| Pricing | `pricing_agent/agent.py` | DONE | Market rate tables, loadings/discounts, Claude Haiku |
 
-| File | What it does |
-|---|---|
-| `src/qbe_underwriting/platform/llm/client.py` | Shared async Anthropic client + `MODEL_FOR_AGENT` routing dict |
-| `src/qbe_underwriting/platform/cost_tracking/pricing.py` | Real cost calc from Anthropic token counts |
-| `src/qbe_underwriting/platform/cost_tracking/middleware.py` | Writes cost to `cost_ledger` table after every LLM call |
-| `src/qbe_underwriting/platform/cost_tracking/dashboard.py` | Streamlit cost dashboard for finance team |
-| `src/qbe_underwriting/pipeline/document_ingestion_agent/agent.py` | **First working agent** — calls Claude Haiku, validates with Pydantic |
-| `samples/documents/*.txt` | 4 sample broker documents (happy path, high risk, missing fields, prompt injection) |
-| `scripts/run_ingestion.py` | Developer test script — run any sample through the agent |
+### Platform (all in `src/qbe_underwriting/platform/`)
 
-### BUGS FIXED TODAY
-- `PromptRegistry` PROMPTS_ROOT was `parents[2]` → fixed to `parents[4]` (project root)
-- Claude wraps JSON in ```json fences despite prompt — fixed with `_strip_markdown_fences()` in agent
-- `security_features: null` from LLM failed Pydantic — fixed with `NullableList = Annotated[list[str], BeforeValidator(lambda v: v or [])]`
+| Component | File | Status | Notes |
+|---|---|---|---|
+| LLM Client | `llm/client.py` | DONE | Shared async Anthropic client + model routing |
+| Governance Agent | `governance_agent/agent.py` | DONE | Final gatekeeper — Claude Sonnet, 4096 tokens |
+| LangGraph Workflow | `orchestration/workflow.py` | DONE | StateGraph, MemorySaver, interrupt/resume for HITL |
+| Cost Tracking | `cost_tracking/middleware.py` | DONE | Records token cost after every LLM call |
+| Cost Dashboard | `cost_tracking/dashboard.py` | DONE | Streamlit finance dashboard |
+| Cost Pricing | `cost_tracking/pricing.py` | DONE | Real cost calc from Anthropic token counts |
+| Prompt Registry | `orchestration/prompt_registry.py` | DONE | Versioned prompts, `{{VAR}}` rendering, cached |
 
-### TEST RESULTS — all 4 samples passing
-| Sample | Confidence | Result |
+### API & UI
+
+| File | Status | Notes |
 |---|---|---|
-| `harbour_fresh` | high | All fields extracted correctly |
-| `high_risk` | high | Flood zone + 4 claims extracted correctly |
-| `missing_fields` | medium | 12 missing fields identified, 3 anomalies flagged |
-| `prompt_injection` | high | Both injection attempts flagged in anomalies, not executed |
+| `src/qbe_underwriting/api/routers/health.py` | DONE | GET /health |
+| `src/qbe_underwriting/api/routers/submissions.py` | DONE | POST + GET /api/v1/submissions |
+| `src/qbe_underwriting/api/routers/pipeline.py` | DONE | Full pipeline + queue endpoints |
+| `streamlit_app.py` | DONE | Multi-page UI: Submit Document, Queue, Submission Lookup |
+| `main.py` | DONE | FastAPI app wiring all routers |
 
-### EMPTY SCAFFOLDING — still to build
+### Infrastructure
 
-| Folder | What needs to be built |
+| File | Status |
 |---|---|
-| `src/qbe_underwriting/pipeline/claims_history_agent/` | `agent.py` — RAG over claims DB using pgvector |
-| `src/qbe_underwriting/pipeline/hazard_evaluation_agent/` | `agent.py` — property/environmental risk scoring |
-| `src/qbe_underwriting/pipeline/underwriting_risk_agent/` | `agent.py` — synthesise all inputs → Accept/Decline/Refer |
-| `src/qbe_underwriting/pipeline/human_in_the_loop/` | `agent.py` — underwriter review queue |
-| `src/qbe_underwriting/pipeline/pricing_agent/` | `agent.py` — premium calculation |
-| `src/qbe_underwriting/platform/security/` | `sanitiser.py` — code-level prompt injection filter |
-| `src/qbe_underwriting/platform/observability/` | `audit_writer.py` — append-only decision logger |
-| `src/qbe_underwriting/platform/orchestration/` | `workflow.py` — LangGraph state machine |
+| `alembic/versions/` | 3 migrations: 0001 initial, 0002 resize vector 1536→384, 0003 customers/policies/claims |
+| `scripts/seed_data.py` | 15 customers, 15 claims, 15 embeddings, 8 regulations |
+| `prompts/*/v1.0.md` | All 7 agent prompts versioned |
+| `tests/` | Schema tests, health + submission API tests |
+| `samples/documents/*.txt` | 4 broker sample docs (happy path, high risk, missing fields, prompt injection) |
 
-### NEXT TASK — two options, discuss with Raj
-**Option A:** Build `claims_history_agent/agent.py` — RAG query over seeded claims data
-**Option B:** Wire up FastAPI submission endpoint to trigger the pipeline — gives a proper HTTP entry point
-
----
-
-## Key Technical Decisions Made
-
-### Embeddings
-- **sentence-transformers `all-MiniLM-L6-v2`** — free, local, no API key, 384-dim vectors
-- pgvector stores Vector(384) with HNSW index in `claims_embeddings` table
-- This IS the RAG vector store — not Pinecone, not a separate service
-
-### LLM Model Routing (designed, not yet coded)
-Each agent uses a different model based on task complexity:
-```python
-MODEL_ROUTING = {
-    "document_ingestion_agent": "claude-haiku-4-5-20251001",   # extraction only
-    "claims_history_agent":     "claude-haiku-4-5-20251001",   # retrieval + summarise
-    "hazard_evaluation_agent":  "claude-sonnet-4-6",            # moderate reasoning
-    "underwriting_risk_agent":  "claude-sonnet-4-6",            # deep synthesis
-    "governance_agent":         "claude-sonnet-4-6",            # high-stakes validation
-    "pricing_agent":            "claude-haiku-4-5-20251001",    # mostly deterministic
-}
-```
-This config goes into `platform/orchestration/` when the first agent is built.
-
-### Database
-- PostgreSQL 17 + pgvector via Docker
-- `DATABASE_URL=postgresql+asyncpg://qbe:localdev@localhost:5432/qbe_underwriting`
-- Async SQLAlchemy 2.0 with `mapped_column` / `Mapped` syntax
-- 10 ORM models: 4 seeded at startup, 6 transactional (populated when pipeline runs)
-
-### Jurisdictions
-- **NZ only** → RBNZ/FMA rules
-- **AU only** → APRA rules
-- No Singapore, no MAS, no SGD anywhere in this project
-  (Raj's career goal is Singapore but QBE NZ operates in NZ and AU only)
-
-### Pre-screening (deterministic rules before LLM)
-In `underwriting_risk_agent` — checked before any LLM call:
-- `HazardScore.flood_zone == "EXTREME"` AND claims > 2 → auto-Refer
-- `sum_insured > $50M` → always Refer
-- `ClaimProfile.risk_flags` contains `"FRAUD_SUSPICION"` → auto-Decline
+### Still to build (optional enhancements)
+- `platform/security/sanitiser.py` — code-level prompt injection filter (currently handled in LLM prompt)
+- `platform/observability/audit_writer.py` — append-only decision logger / OpenTelemetry
 
 ---
 
@@ -143,14 +89,83 @@ uv run alembic upgrade head
 # 4. Seed the database
 uv run python scripts/seed_data.py
 
-# 5. Start the API
-uv run uvicorn main:app --reload
+# 5. Start the API (port 8081 — 8000/8080 may be occupied on this machine)
+uv run uvicorn main:app --port 8081
 
-# 6. Run tests
+# 6. Start the Streamlit UI (separate terminal)
+uv run streamlit run streamlit_app.py
+
+# 7. Run tests
 uv run pytest
 
-# API docs: http://localhost:8000/docs
+# API docs:      http://localhost:8081/docs
+# Streamlit UI:  http://localhost:8502
+# Cost dashboard: uv run streamlit run src/qbe_underwriting/platform/cost_tracking/dashboard.py
 ```
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Health check |
+| POST | `/api/v1/submissions` | Create submission record |
+| GET | `/api/v1/submissions/{id}` | Get submission by ID |
+| POST | `/api/v1/submissions/pipeline` | Ingest document + run full pipeline |
+| GET | `/api/v1/queue` | List pending underwriter queue items |
+| GET | `/api/v1/queue/{queue_id}` | Get queue item with full submission details |
+| POST | `/api/v1/queue/{queue_id}/decision` | Submit underwriter decision + resume pipeline |
+
+---
+
+## Key Technical Decisions
+
+### LLM Model Routing (live in `platform/llm/client.py`)
+```python
+MODEL_FOR_AGENT = {
+    "document_ingestion_agent": "claude-haiku-4-5-20251001",
+    "claims_history_agent":     "claude-haiku-4-5-20251001",
+    "hazard_evaluation_agent":  "claude-sonnet-4-6",
+    "underwriting_risk_agent":  "claude-sonnet-4-6",
+    "governance_agent":         "claude-sonnet-4-6",
+    "pricing_agent":            "claude-haiku-4-5-20251001",
+}
+```
+
+### LangGraph Workflow (`platform/orchestration/workflow.py`)
+- `WorkflowState` TypedDict — all JSON-serializable (no DB sessions in state)
+- Nodes: `parallel_analysis` → `underwriting_risk` → routing → `human_review` / `auto_approve` → `pricing` → `governance` / `decline`
+- `parallel_analysis_node` runs claims + hazard via `asyncio.gather()`
+- `human_review_node` calls `interrupt()` to pause; resumes via `Command(resume=...)` when underwriter submits decision
+- `MemorySaver` checkpointer — thread_id == submission_id, enabling cross-request pause/resume
+- Public API: `run_pipeline()` and `resume_pipeline()`
+
+### Embeddings & RAG
+- **sentence-transformers `all-MiniLM-L6-v2`** — free, local, 384-dim, loaded once via `@lru_cache`
+- pgvector `Vector(384)` with HNSW index in `claims_embeddings` table
+- Benchmark SQL excludes `fraud_flag = true` — fraud from other customers must not taint new submissions
+- Customer match: ABN/NZBN exact → name ILIKE → vector similarity fallback
+
+### Deterministic Pre-screening (in `underwriting_risk_agent/agent.py`)
+Fires before any LLM call:
+- `overall_hazard_level == EXTREME` AND `total_claims_3yr > 2` → auto-DECLINE
+- `FRAUD_SUSPICION` in risk flags → auto-DECLINE
+- `sum_insured > NZD/AUD 50,000,000` → auto-REFER
+- `data_quality == LOW` → auto-REFER
+- `hazard_score.confidence < 0.50` → auto-REFER
+- `extraction_confidence == low` → auto-REFER
+
+### Database
+- PostgreSQL 17 + pgvector via Docker
+- `DATABASE_URL=postgresql+asyncpg://qbe:localdev@localhost:5432/qbe_underwriting`
+- Async SQLAlchemy 2.0 with `mapped_column` / `Mapped` syntax
+- Each LangGraph node creates its own DB session (not passed through state)
+
+### Jurisdictions
+- **NZ** → RBNZ/FMA rules
+- **AU** → APRA rules
+- No Singapore, no MAS, no SGD (QBE NZ operates in NZ and AU only)
 
 ---
 
@@ -158,90 +173,73 @@ uv run pytest
 
 ```
 AI_UNDERWRITING_SYSTEMS/
-├── main.py                            ← FastAPI entry point (uvicorn main:app)
-├── pyproject.toml                     ← all deps + tooling (pytest, ruff, mypy)
-├── alembic.ini                        ← script_location=alembic, prepend_sys_path=src
-├── docker-compose.yml                 ← Postgres + Redis for local dev
-├── Dockerfile                         ← production container, PYTHONPATH=/app/src
-├── .pre-commit-config.yaml            ← ruff lint/format + file hygiene hooks
-├── .env / .env.example                ← secrets (never committed)
+├── main.py                            ← FastAPI entry point
+├── streamlit_app.py                   ← Underwriter UI (Submit, Queue, Lookup)
+├── pyproject.toml
+├── alembic.ini
+├── docker-compose.yml
+├── Dockerfile
+├── .env / .env.example
 │
 ├── src/
-│   └── qbe_underwriting/             ← single top-level package (src layout)
+│   └── qbe_underwriting/
 │       ├── pipeline/
-│       │   ├── document_ingestion_agent/   schemas.py ✓  agent.py ✗
-│       │   ├── claims_history_agent/       schemas.py ✓  agent.py ✗
-│       │   ├── hazard_evaluation_agent/    schemas.py ✓  agent.py ✗
-│       │   ├── underwriting_risk_agent/    schemas.py ✓  agent.py ✗
-│       │   ├── human_in_the_loop/          schemas.py ✓  agent.py ✗
-│       │   └── pricing_agent/              schemas.py ✓  agent.py ✗
+│       │   ├── document_ingestion_agent/   schemas.py ✓  agent.py ✓
+│       │   ├── claims_history_agent/       schemas.py ✓  agent.py ✓
+│       │   ├── hazard_evaluation_agent/    schemas.py ✓  agent.py ✓
+│       │   ├── underwriting_risk_agent/    schemas.py ✓  agent.py ✓
+│       │   ├── human_in_the_loop/          schemas.py ✓  agent.py ✓
+│       │   └── pricing_agent/             schemas.py ✓  agent.py ✓
 │       ├── platform/
 │       │   ├── database/              models.py ✓  connection.py ✓
-│       │   ├── orchestration/         prompt_registry.py ✓  workflow.py ✗
-│       │   ├── governance_agent/      schemas.py ✓  agent.py ✗
-│       │   ├── compliance_agent/      schemas.py ✓  agent.py ✗
-│       │   ├── security/              sanitiser.py ✗
-│       │   ├── cost_tracking/         middleware.py ✗
-│       │   └── observability/         audit_writer.py ✗
+│       │   ├── orchestration/         prompt_registry.py ✓  workflow.py ✓
+│       │   ├── governance_agent/      schemas.py ✓  agent.py ✓
+│       │   ├── compliance_agent/      schemas.py ✓  (agent.py not yet built)
+│       │   ├── llm/                   client.py ✓
+│       │   ├── cost_tracking/         pricing.py ✓  middleware.py ✓  dashboard.py ✓
+│       │   ├── security/              (sanitiser.py not yet built)
+│       │   └── observability/         (audit_writer.py not yet built)
 │       └── api/
-│           └── routers/               health.py ✓  submissions.py ✓
+│           └── routers/               health.py ✓  submissions.py ✓  pipeline.py ✓
 │
-├── alembic/
-│   ├── env.py
-│   └── versions/   0001_initial ✓  0002_resize_vector ✓  0003_customers_policies_claims ✓
-│
-├── scripts/
-│   └── seed_data.py   ← 15 customers, 15 claims, 15 embeddings, 8 regulations
-│
-├── prompts/
-│   ├── document_ingestion_agent/v1.0.md ✓
-│   ├── claims_history_agent/v1.0.md     ✓
-│   ├── hazard_evaluation_agent/v1.0.md  ✓
-│   ├── underwriting_risk_agent/v1.0.md  ✓
-│   ├── pricing_agent/v1.0.md            ✓
-│   ├── governance_agent/v1.0.md         ✓
-│   └── compliance_agent/v1.0.md         ✓
-│
-├── tests/
-│   ├── conftest.py              ← test DB, session, HTTP client fixtures
-│   ├── api/                     test_health.py ✓  test_submissions.py ✓
-│   ├── pipeline/                test_schemas.py ✓
-│   └── platform/                test_schemas.py ✓
-│
-└── docs/
-    ├── architecture/end-to-end-flow.md
-    └── Q&A/   01-general through 14-observability (interview prep)
+├── alembic/versions/   0001 ✓  0002 ✓  0003 ✓
+├── scripts/            seed_data.py ✓  run_ingestion.py ✓
+├── prompts/            all 7 agents v1.0.md ✓
+├── samples/documents/  4 sample broker docs ✓
+└── tests/              conftest ✓  api ✓  pipeline ✓  platform ✓
 ```
 
 ---
 
-## The Real Underwriting Flow
+## The Underwriting Flow
 
 ```
-BROKER submits documents (PDFs, photos, forms)
+BROKER submits documents
   ↓
-pipeline/document_ingestion_agent    ← OCR + extract + sanitise (prompt injection check)
-  ↓                                    ↑ loopback: broker queried for missing docs
-platform/orchestration               ← LangGraph state machine takes control
-  ↓ (runs in parallel)
-pipeline/claims_history_agent        ← RAG: past claims for this customer/property
-pipeline/hazard_evaluation_agent     ← flood, fire, structural, environmental risk
+POST /api/v1/submissions/pipeline
+  ↓
+document_ingestion_agent      ← Claude Haiku: extract + sanitise + flag anomalies
+  ↓
+LangGraph workflow starts
+  ↓ (parallel via asyncio.gather)
+claims_history_agent          ← RAG: customer claims history or benchmark
+hazard_evaluation_agent       ← NZ/AU geo/environmental risk scoring
   ↓ (both complete)
-pipeline/underwriting_risk_agent     ← synthesise → Accept / Decline / Refer + confidence
+underwriting_risk_agent       ← pre-screen rules → Claude Sonnet synthesis → ACCEPT/DECLINE/REFER
   ↓
-pipeline/human_in_the_loop           ← mandatory for Refer or confidence < 0.70
-  ↓
-pipeline/pricing_agent               ← premium + terms (only after human sign-off)
-  ↓
-platform/governance_agent            ← final consistency + compliance validation
-  ↓
-POLICY ISSUED
+  ├─ DECLINE → decline_node → workflow_status = DECLINED
+  ├─ ACCEPT (confidence ≥ 0.70) → auto_approve_node → pricing → governance
+  └─ REFER / low confidence → human_review_node → interrupt() → workflow_status = RUNNING
+                                    ↓
+                              POST /api/v1/queue/{id}/decision
+                                    ↓
+                              resume_pipeline() → pricing → governance
+                                    ↓
+                              workflow_status = COMPLETED / AWAITING_SENIOR_REVIEW
 
-Cross-cutting (wrap every agent):
-  platform/security          → prompt injection filter
-  platform/cost_tracking     → token metering per agent/policy
-  platform/observability     → audit trail, OpenTelemetry traces
-  platform/compliance_agent  → APRA (AU) + RBNZ/FMA (NZ) rules
+Cross-cutting (every agent):
+  cost_tracking     → token cost recorded in cost_ledger after each LLM call
+  governance_agent  → final chain validation: consistency + compliance + fraud signals
 ```
 
 ---
@@ -249,8 +247,8 @@ Cross-cutting (wrap every agent):
 ## Design Principles
 - Broker documents are UNTRUSTED — sanitised at ingestion before reaching any agent
 - Claims history and hazard evaluation run in parallel — neither depends on the other
-- Pricing only runs AFTER human review — never on unconfirmed risk assessment
-- Conflict resolution is deterministic and rule-based — never left to the LLM
+- Pricing only runs AFTER human review — never on an unconfirmed risk assessment
+- Pre-screen rules are deterministic Python — not left to the LLM
 - No policy is silently issued on a failed or incomplete workflow
 - Every decision is auditable — prompt version, inputs, outputs, confidence all logged
 - Human escalation is rule-triggered, not LLM-triggered
@@ -263,6 +261,7 @@ from qbe_underwriting.pipeline.document_ingestion_agent.schemas import Submissio
 from qbe_underwriting.platform.database.models import Submission, Customer, Claim
 from qbe_underwriting.platform.database.connection import get_session
 from qbe_underwriting.platform.orchestration.prompt_registry import PromptRegistry
+from qbe_underwriting.platform.orchestration.workflow import run_pipeline, resume_pipeline
 ```
 
 ---

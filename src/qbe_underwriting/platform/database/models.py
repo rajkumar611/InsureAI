@@ -1,5 +1,5 @@
 """
-SQLAlchemy 2.0 ORM models for QBE-AI-Underwriting.
+SQLAlchemy 2.0 ORM models for AI-Underwriting-System.
 
 Tables:
   customers          — registered customers (individuals and companies)

@@ -18,7 +18,7 @@ from qbe_underwriting.platform.orchestration.prompt_registry import PromptRegist
 logger = logging.getLogger(__name__)
 
 AGENT_NAME = "pricing_agent"
-ACTUARIAL_TABLE_VERSION = "QBE-NZ-AU-PROP-2024-v1"
+ACTUARIAL_TABLE_VERSION = "AI-UW-NZ-AU-PROP-2024-v1"
 MAX_RETRIES = 2
 
 # ── Simulated market rate data ─────────────────────────────────────────────────
