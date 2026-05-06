@@ -60,7 +60,7 @@ fully built and tested end-to-end.
 
 | File | Status |
 |---|---|
-| `alembic/versions/` | 3 migrations: 0001 initial, 0002 resize vector 1536→384, 0003 customers/policies/claims |
+| `alembic/versions/` | 4 migrations: 0001 initial, 0002 resize vector 1536→384, 0003 customers/policies/claims, 0004 submission extracted_data fields |
 | `scripts/seed_data.py` | 15 customers, 15 claims, 15 embeddings, 8 regulations |
 | `prompts/*/v1.0.md` | All 7 agent prompts versioned |
 | `tests/` | Schema tests, health + submission API tests |
@@ -202,7 +202,7 @@ AI_UNDERWRITING_SYSTEMS/
 │       └── api/
 │           └── routers/               health.py ✓  submissions.py ✓  pipeline.py ✓
 │
-├── alembic/versions/   0001 ✓  0002 ✓  0003 ✓
+├── alembic/versions/   0001 ✓  0002 ✓  0003 ✓  0004 ✓
 ├── scripts/            seed_data.py ✓  run_ingestion.py ✓
 ├── prompts/            all 7 agents v1.0.md ✓
 ├── samples/documents/  4 sample broker docs ✓

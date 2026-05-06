@@ -664,11 +664,11 @@ elif page == "Underwriter Queue":
                         dec_tick += 1
 
                     dec_thread.join()
-                    dec_progress.progress(100)
+                    dec_progress.empty()
+                    dec_status.empty()
 
                     if "error" in dec_result:
-                        dec_progress.empty()
-                        dec_status.error(f"❌  Decision failed: {dec_result['error']}")
+                        st.error(f"❌  Decision failed: {dec_result['error']}")
                         st.stop()
 
                     final = dec_result["data"]
