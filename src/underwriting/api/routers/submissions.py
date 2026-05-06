@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline.document_ingestion_agent.agent import run as ingest
@@ -134,15 +135,29 @@ async def ingest_submission(
 
 
 @router.get(
-    "/submissions/{submission_id}",
+    "/submissions/{ref}",
     response_model=dict,
-    summary="Get submission status and extracted data",
+    summary="Get submission by policy number or submission ID",
 )
 async def get_submission(
-    submission_id: str,
+    ref: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict:
-    result = await session.get(Submission, uuid.UUID(submission_id))
+    result = None
+
+    # Try lookup by policy number / submission_ref first
+    row = await session.execute(
+        select(Submission).where(Submission.submission_ref == ref)
+    )
+    result = row.scalars().first()
+
+    # Fall back to UUID lookup
+    if not result:
+        try:
+            result = await session.get(Submission, uuid.UUID(ref))
+        except (ValueError, AttributeError):
+            pass
+
     if not result:
         raise HTTPException(status_code=404, detail="Submission not found")
 

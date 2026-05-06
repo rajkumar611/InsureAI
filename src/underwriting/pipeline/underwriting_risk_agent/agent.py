@@ -187,6 +187,7 @@ async def run(
         response = await anthropic_client.messages.create(
             model=model,
             max_tokens=2048,
+            temperature=0,
             system=system_prompt,
             messages=[
                 {

@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Literal
 
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from typing_extensions import TypedDict
@@ -302,8 +302,7 @@ def _build_graph() -> StateGraph:
     return g
 
 
-# Compile once with an in-memory checkpointer so interrupt/resume works
-_checkpointer = MemorySaver()
+_checkpointer = InMemorySaver()
 graph = _build_graph().compile(checkpointer=_checkpointer)
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Annotated, Any
 
@@ -19,8 +20,23 @@ router = APIRouter()
 
 # ── Request / Response models ─────────────────────────────────────────────────
 
+_COB_SUFFIX = {
+    "property": "PPY",
+    "liability": "LBY",
+    "marine": "CGO",
+    "motor": "MOT",
+    "specialty": "SPC",
+}
+
+
+def _generate_policy_number(class_of_business: str) -> str:
+    suffix = _COB_SUFFIX.get(class_of_business.lower(), "GEN")
+    seq = f"{int(time.time() * 1000) % 10000000:07d}"
+    return f"P{seq}{suffix}"
+
+
 class PipelineRequest(BaseModel):
-    submission_ref: str
+    submission_ref: str | None = None
     class_of_business: str
     jurisdiction: str = "NZ"
     document_content: str
@@ -48,9 +64,10 @@ async def run_full_pipeline(
     body: PipelineRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    # 1. Create and persist the submission row
+    # 1. Create and persist the submission row with a temporary internal ref
+    temp_ref = f"TEMP-{uuid.uuid4().hex[:12].upper()}"
     submission = Submission(
-        submission_ref=body.submission_ref,
+        submission_ref=body.submission_ref or temp_ref,
         class_of_business=body.class_of_business,
         jurisdiction=body.jurisdiction,
         status="INGESTING",
@@ -98,14 +115,16 @@ async def run_full_pipeline(
             detail=f"Pipeline failed: {exc}",
         ) from exc
 
-    # 4. Update submission status from pipeline outcome
+    # 4. Assign policy number and update submission status
     wf_status = pipeline_state.get("workflow_status", "UNKNOWN")
+    policy_number = _generate_policy_number(body.class_of_business)
+    submission.submission_ref = policy_number
     submission.status = wf_status
     await session.commit()
 
     return {
         "submission_id": submission_id,
-        "submission_ref": body.submission_ref,
+        "submission_ref": policy_number,
         "workflow_status": wf_status,
         "ingestion": {
             "extraction_confidence": ingestion_result.extraction_confidence,
@@ -134,18 +153,21 @@ async def list_queue(
         .order_by(UnderwriterQueueItem.sla_deadline)
     )
     items = rows.scalars().all()
-    return [
-        {
+
+    result = []
+    for item in items:
+        submission = await session.get(Submission, item.submission_id)
+        result.append({
             "queue_id": str(item.id),
             "submission_id": str(item.submission_id),
+            "submission_ref": submission.submission_ref if submission else None,
             "priority": item.priority,
             "sla_deadline": item.sla_deadline.isoformat(),
             "status": item.status,
             "risk_assessment": item.risk_assessment_snapshot,
             "created_at": item.created_at.isoformat(),
-        }
-        for item in items
-    ]
+        })
+    return result
 
 
 @router.get(

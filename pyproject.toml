@@ -30,6 +30,9 @@ dependencies = [
     "httpx>=0.28.0",
     "tenacity>=9.0.0",
     "sentence-transformers>=3.0.0",
+    "langgraph-checkpoint-postgres>=3.0.5",
+    "psycopg[binary]>=3.3.4",
+    "psycopg-pool>=3.3.1",
 ]
 
 [project.optional-dependencies]
