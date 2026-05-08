@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
 from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.database.models import ClaimsEmbedding, Customer
 from underwriting.platform.llm.client import anthropic_client, model_for
+from underwriting.platform.llm.parsing import extract_first_json_object
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -106,20 +108,6 @@ def _get_encoder():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 
-def _extract_first_json_object(text: str) -> str:
-    """Return the first complete {...} block from text, ignoring trailing commentary."""
-    start = text.find("{")
-    if start == -1:
-        return text
-    depth = 0
-    for i, ch in enumerate(text[start:], start):
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return text[start:]
 
 
 def _embed(text_: str) -> list[float]:
@@ -190,7 +178,8 @@ async def _fetch_similar_claims(
         f"{class_of_business}"
     )
     vec = _embed(query_text)
-    vec_literal = f"[{','.join(str(v) for v in vec)}]"
+    # Build a strictly numeric literal — float() raises if any value is not a real number
+    vec_literal = "[" + ",".join(f"{float(v):.8g}" for v in vec) + "]"
 
     result = await session.execute(
         text("""
@@ -326,13 +315,15 @@ async def run(
             feature_tag="claims_rag",
         )
 
+        if not response.content:
+            raise ValueError("LLM returned empty response")
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             lines = raw.splitlines()
             raw = "\n".join(lines[1:-1]).strip()
 
         try:
-            data = json.loads(_extract_first_json_object(raw))
+            data = json.loads(extract_first_json_object(raw))
             # Normalise common LLM field-name variations before Pydantic sees them
             if "source" not in data:
                 data["source"] = data.pop("data_source", retrieval_source)
@@ -360,6 +351,15 @@ async def run(
             logger.info(
                 "claims_history_agent: success  flags=%s  confidence=%.2f  source=%s",
                 profile.risk_flags, profile.confidence, profile.source,
+            )
+            await record_agent_decision(
+                session=session,
+                submission_id=submission_id,
+                agent_name=AGENT_NAME,
+                event_type="CLAIMS_PROFILE_GENERATED",
+                decision_value=profile.source,
+                confidence_score=float(profile.confidence),
+                parsed_output=profile.model_dump(mode="json"),
             )
             return profile
 

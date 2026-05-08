@@ -8,8 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
 from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
+from underwriting.platform.llm.parsing import extract_first_json_object
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -143,22 +145,6 @@ def _derive_hazard_data(risk_address: str, jurisdiction: str) -> dict:
         }
 
 
-# ── JSON helpers ──────────────────────────────────────────────────────────────
-
-def _extract_first_json_object(text: str) -> str:
-    start = text.find("{")
-    if start == -1:
-        return text
-    depth = 0
-    for i, ch in enumerate(text[start:], start):
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return text[start:]
-
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
@@ -224,13 +210,15 @@ async def run(
             feature_tag="hazard_evaluation",
         )
 
+        if not response.content:
+            raise ValueError("LLM returned empty response")
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             lines = raw.splitlines()
             raw = "\n".join(lines[1:-1]).strip()
 
         try:
-            data = json.loads(_extract_first_json_object(raw))
+            data = json.loads(extract_first_json_object(raw))
             data["submission_id"] = submission_id
             allowed = HazardScore.model_fields.keys()
             data = {k: v for k, v in data.items() if k in allowed}
@@ -245,6 +233,15 @@ async def run(
             logger.info(
                 "hazard_evaluation_agent: success  overall=%s (%.2f)  confidence=%.2f",
                 score.overall_hazard_level, score.overall_hazard_score, score.confidence,
+            )
+            await record_agent_decision(
+                session=session,
+                submission_id=submission_id,
+                agent_name=AGENT_NAME,
+                event_type="HAZARD_EVALUATED",
+                decision_value=score.overall_hazard_level,
+                confidence_score=float(score.confidence),
+                parsed_output=score.model_dump(mode="json"),
             )
             return score
 

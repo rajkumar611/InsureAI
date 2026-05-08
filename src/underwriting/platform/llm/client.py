@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import anthropic
 from pydantic_settings import BaseSettings
 
@@ -21,13 +23,12 @@ anthropic_client = anthropic.AsyncAnthropic(api_key=_settings.ANTHROPIC_API_KEY)
 
 # Model routing — each agent uses the right model for its complexity
 MODEL_FOR_AGENT: dict[str, str] = {
-    "document_ingestion_agent": "claude-haiku-4-5-20251001",
-    "claims_history_agent":     "claude-haiku-4-5-20251001",
-    "hazard_evaluation_agent":  "claude-sonnet-4-6",
-    "underwriting_risk_agent":  "claude-sonnet-4-6",
-    "governance_agent":         "claude-sonnet-4-6",
-    "compliance_agent":         "claude-sonnet-4-6",
-    "pricing_agent":            "claude-haiku-4-5-20251001",
+    "document_ingestion_agent": os.getenv("MODEL_INGESTION",  "claude-haiku-4-5-20251001"),
+    "claims_history_agent":     os.getenv("MODEL_CLAIMS",     "claude-haiku-4-5-20251001"),
+    "hazard_evaluation_agent":  os.getenv("MODEL_HAZARD",     "claude-sonnet-4-6"),
+    "underwriting_risk_agent":  os.getenv("MODEL_RISK",       "claude-sonnet-4-6"),
+    "governance_agent":         os.getenv("MODEL_GOVERNANCE", "claude-sonnet-4-6"),
+    "pricing_agent":            os.getenv("MODEL_PRICING",    "claude-haiku-4-5-20251001"),
 }
 
 

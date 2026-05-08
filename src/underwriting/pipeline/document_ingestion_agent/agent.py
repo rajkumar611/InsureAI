@@ -7,8 +7,10 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
+from underwriting.platform.llm.parsing import strip_markdown_fences
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -16,14 +18,6 @@ logger = logging.getLogger(__name__)
 AGENT_NAME = "document_ingestion_agent"
 
 
-def _strip_markdown_fences(text: str) -> str:
-    """Remove ```json ... ``` or ``` ... ``` wrappers Claude sometimes adds."""
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.splitlines()
-        # drop first line (```json or ```) and last line (```)
-        text = "\n".join(lines[1:-1]).strip()
-    return text
 MAX_RETRIES = 2
 
 
@@ -79,7 +73,9 @@ async def run(
             feature_tag="extraction",
         )
 
-        raw_text = _strip_markdown_fences(response.content[0].text)
+        if not response.content:
+            raise ValueError("LLM returned empty response")
+        raw_text = strip_markdown_fences(response.content[0].text)
         logger.debug("document_ingestion_agent: raw response: %s", raw_text[:200])
 
         try:
@@ -90,6 +86,17 @@ async def run(
                 submission_data.extraction_confidence,
                 submission_data.missing_required_fields,
                 len(submission_data.anomalies),
+            )
+            _conf_map = {"high": 0.90, "medium": 0.70, "low": 0.50}
+            await record_agent_decision(
+                session=session,
+                submission_id=submission_id,
+                agent_name=AGENT_NAME,
+                event_type="DOCUMENT_INGESTED",
+                decision_value=submission_data.extraction_confidence,
+                confidence_score=_conf_map.get(submission_data.extraction_confidence or ""),
+                parsed_output=submission_data.model_dump(mode="json"),
+                prompt_version=str(prompt_template.version),
             )
             return submission_data
 

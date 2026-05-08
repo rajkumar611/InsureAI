@@ -4,9 +4,10 @@ import asyncio
 import logging
 from typing import Literal
 
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
+from psycopg_pool import AsyncConnectionPool
 from typing_extensions import TypedDict
 
 from underwriting.platform.progress_tracker import set_step
@@ -21,6 +22,7 @@ from underwriting.pipeline.pricing_agent import agent as pricing_agent
 from underwriting.pipeline.pricing_agent.schemas import PricingOutput
 from underwriting.pipeline.underwriting_risk_agent import agent as risk_agent
 from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.database.connection import AsyncSessionLocal
 from underwriting.platform.governance_agent import agent as governance_agent
 from underwriting.platform.governance_agent.schemas import GovernanceDecision
@@ -180,6 +182,19 @@ async def human_review_node(state: WorkflowState) -> dict:
     logger.info("workflow: human_review resumed  action=%s  underwriter=%s", uw.action, uw.underwriter_id)
 
     async with AsyncSessionLocal() as session:
+        await record_agent_decision(
+            session=session,
+            submission_id=sid,
+            agent_name="human_in_the_loop",
+            event_type="UNDERWRITER_DECISION",
+            decision_value=uw.action,
+            decision_rationale=uw.override_reason,
+            underwriter_id=uw.underwriter_id,
+            override_reason=uw.override_reason,
+            parsed_output=uw.model_dump(mode="json"),
+        )
+        await session.commit()
+
         queue_item_fresh = await session.get(
             __import__("underwriting.platform.database.models", fromlist=["UnderwriterQueueItem"]).UnderwriterQueueItem,
             __import__("uuid").UUID(queue_id),
@@ -317,8 +332,33 @@ def _build_graph() -> StateGraph:
     return g
 
 
-_checkpointer = InMemorySaver()
-graph = _build_graph().compile(checkpointer=_checkpointer)
+_pool: AsyncConnectionPool | None = None
+graph = None
+
+
+async def init_workflow(db_url: str) -> None:
+    """Call once at app startup to wire up the Postgres checkpointer."""
+    global _pool, graph
+    pg_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    _pool = AsyncConnectionPool(
+        conninfo=pg_url,
+        max_size=5,
+        kwargs={"autocommit": True, "prepare_threshold": 0},
+        open=False,
+    )
+    await _pool.open()
+    checkpointer = AsyncPostgresSaver(_pool)
+    await checkpointer.setup()
+    graph = _build_graph().compile(checkpointer=checkpointer)
+    logger.info("workflow: Postgres checkpointer ready")
+
+
+async def close_workflow() -> None:
+    """Call at app shutdown to close the connection pool."""
+    global _pool
+    if _pool:
+        await _pool.close()
+        logger.info("workflow: connection pool closed")
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────

@@ -12,9 +12,11 @@ from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
 from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
 from underwriting.pipeline.pricing_agent.schemas import PricingOutput
 from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.governance_agent.schemas import GovernanceDecision
 from underwriting.platform.llm.client import anthropic_client, model_for
+from underwriting.platform.llm.parsing import extract_first_json_object
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -22,21 +24,6 @@ logger = logging.getLogger(__name__)
 AGENT_NAME = "governance_agent"
 COMPLIANCE_RULES_VERSION = "AI-UW-COMPLIANCE-NZ-AU-2024-v1"
 MAX_RETRIES = 2
-
-
-def _extract_first_json_object(text: str) -> str:
-    start = text.find("{")
-    if start == -1:
-        return text
-    depth = 0
-    for i, ch in enumerate(text[start:], start):
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return text[start:]
 
 
 async def run(
@@ -102,13 +89,15 @@ async def run(
             feature_tag="governance",
         )
 
+        if not response.content:
+            raise ValueError("LLM returned empty response")
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             lines = raw.splitlines()
             raw = "\n".join(lines[1:-1]).strip()
 
         try:
-            data = json.loads(_extract_first_json_object(raw))
+            data = json.loads(extract_first_json_object(raw))
             # Always inject the canonical version
             data["compliance_rules_version"] = COMPLIANCE_RULES_VERSION
             # Drop unknown top-level fields
@@ -120,6 +109,15 @@ async def run(
                 decision.governance_outcome,
                 len(decision.checks_passed),
                 len(decision.checks_failed),
+            )
+            await record_agent_decision(
+                session=session,
+                submission_id=submission_id,
+                agent_name=AGENT_NAME,
+                event_type="GOVERNANCE_DECISION",
+                decision_value=decision.governance_outcome,
+                parsed_output=decision.model_dump(mode="json"),
+                prompt_version=COMPLIANCE_RULES_VERSION,
             )
             return decision
 

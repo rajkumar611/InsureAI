@@ -1,28 +1,46 @@
 from __future__ import annotations
 
+import os
 import time
 import uuid
+from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline.document_ingestion_agent.agent import run as ingest
 from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
-from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
-from underwriting.pipeline.pricing_agent import agent as pricing_agent
-from underwriting.platform.governance_agent import agent as governance_agent
 from underwriting.platform.database.connection import get_session
-from underwriting.platform.database.models import Submission, UnderwriterQueueItem
+from underwriting.platform.database.models import CostEntry, Submission, UnderwriterQueueItem
 from underwriting.platform.orchestration.workflow import resume_pipeline, run_pipeline
 from underwriting.platform.progress_tracker import clear as clear_progress, get_step, set_step
 
 router = APIRouter()
+
+# Daily spend cap — override via DAILY_SPEND_CAP_USD env var (default $10)
+_DAILY_SPEND_CAP_USD = Decimal(os.getenv("DAILY_SPEND_CAP_USD", "10.00"))
+
+
+async def _check_daily_spend_cap(session: AsyncSession) -> None:
+    """Raise HTTP 429 if today's LLM spend has reached the configured cap."""
+    result = await session.execute(
+        select(func.coalesce(func.sum(CostEntry.cost_usd), 0))
+        .where(func.date(CostEntry.timestamp) == func.current_date())
+    )
+    today_spend = Decimal(str(result.scalar()))
+    if today_spend >= _DAILY_SPEND_CAP_USD:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Daily LLM spend cap of ${_DAILY_SPEND_CAP_USD} USD reached "
+                f"(today: ${today_spend:.4f} USD). "
+                "Pipeline submissions are paused until tomorrow or the cap is raised."
+            ),
+        )
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
@@ -43,7 +61,7 @@ def _generate_policy_number(class_of_business: str) -> str:
 
 
 class PipelineRequest(BaseModel):
-    submission_id: str | None = None   # client-generated UUID for progress polling
+    submission_id: uuid.UUID | None = None   # client-generated UUID for progress polling
     submission_ref: str | None = None
     class_of_business: str
     jurisdiction: str = "NZ"
@@ -72,6 +90,8 @@ async def run_full_pipeline(
     body: PipelineRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
+    await _check_daily_spend_cap(session)
+
     # 1. Create and persist the submission row with a temporary internal ref
     temp_ref = f"TEMP-{uuid.uuid4().hex[:12].upper()}"
     sub_kwargs: dict = dict(
@@ -81,7 +101,7 @@ async def run_full_pipeline(
         status="INGESTING",
     )
     if body.submission_id:
-        sub_kwargs["id"] = uuid.UUID(body.submission_id)
+        sub_kwargs["id"] = body.submission_id
     submission = Submission(**sub_kwargs)
     session.add(submission)
     await session.flush()
@@ -104,6 +124,7 @@ async def run_full_pipeline(
         submission.missing_fields = ingestion_result.missing_required_fields
         await session.commit()
     except Exception as exc:
+        await session.rollback()
         submission.status = "INGESTION_FAILED"
         await session.commit()
         raise HTTPException(
@@ -181,6 +202,7 @@ async def run_full_pipeline(
             thread_id=submission_id,
         )
     except Exception as exc:
+        await session.rollback()
         submission.status = "PIPELINE_FAILED"
         await session.commit()
         raise HTTPException(
@@ -222,39 +244,59 @@ async def get_pipeline_progress(submission_id: str) -> dict[str, str | None]:
     return {"step": get_step(submission_id)}
 
 
+_QUEUE_PAGE_SIZE = 10
+
+
 @router.get(
     "/queue",
     summary="List pending underwriter queue items",
 )
 async def list_queue(
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> list[dict[str, Any]]:
+    page: int = Query(default=1, ge=1, description="Page number (1-based)"),
+) -> dict[str, Any]:
+    offset = (page - 1) * _QUEUE_PAGE_SIZE
+
+    total_result = await session.execute(
+        select(UnderwriterQueueItem.id)
+        .where(UnderwriterQueueItem.status == "PENDING")
+    )
+    total = len(total_result.all())
+
     rows = await session.execute(
         select(UnderwriterQueueItem, Submission)
         .join(Submission, UnderwriterQueueItem.submission_id == Submission.id, isouter=True)
         .where(UnderwriterQueueItem.status == "PENDING")
         .order_by(UnderwriterQueueItem.sla_deadline)
+        .limit(_QUEUE_PAGE_SIZE)
+        .offset(offset)
     )
     pairs = rows.all()
 
-    return [
-        {
-            "queue_id": str(item.id),
-            "submission_id": str(item.submission_id),
-            "submission_ref": sub.submission_ref if sub else None,
-            "priority": item.priority,
-            "sla_deadline": item.sla_deadline.isoformat(),
-            "status": item.status,
-            "risk_assessment": item.risk_assessment_snapshot,
-            "created_at": item.created_at.isoformat(),
-            "class_of_business": sub.class_of_business if sub else None,
-            "jurisdiction": sub.jurisdiction if sub else None,
-            "extracted_data": sub.extracted_data if sub else {},
-            "ingestion_confidence": sub.ingestion_confidence if sub else None,
-            "anomalies": sub.ingestion_anomalies if sub else [],
-        }
-        for item, sub in pairs
-    ]
+    return {
+        "page": page,
+        "page_size": _QUEUE_PAGE_SIZE,
+        "total": total,
+        "total_pages": max(1, -(-total // _QUEUE_PAGE_SIZE)),  # ceiling division
+        "items": [
+            {
+                "queue_id": str(item.id),
+                "submission_id": str(item.submission_id),
+                "submission_ref": sub.submission_ref if sub else None,
+                "priority": item.priority,
+                "sla_deadline": item.sla_deadline.isoformat(),
+                "status": item.status,
+                "risk_assessment": item.risk_assessment_snapshot,
+                "created_at": item.created_at.isoformat(),
+                "class_of_business": sub.class_of_business if sub else None,
+                "jurisdiction": sub.jurisdiction if sub else None,
+                "extracted_data": sub.extracted_data if sub else {},
+                "ingestion_confidence": sub.ingestion_confidence if sub else None,
+                "anomalies": sub.ingestion_anomalies if sub else [],
+            }
+            for item, sub in pairs
+        ],
+    }
 
 
 @router.get(
@@ -329,58 +371,6 @@ async def submit_decision(
             thread_id=submission_id,
             underwriter_decision=uw_decision,
         )
-    except (KeyError, TypeError):
-        # InMemorySaver loses state on server restart — fall back to DB data.
-        from underwriting.platform.database.connection import AsyncSessionLocal
-
-        try:
-            sub = await session.get(Submission, item.submission_id)
-            if not sub or not sub.extracted_data:
-                raise HTTPException(status_code=409, detail="Submission data not found. Please resubmit the document.")
-
-            cob  = sub.class_of_business
-            jur  = sub.jurisdiction
-            sd   = SubmissionData(**{**sub.extracted_data, "submission_id": submission_id})
-            risk = RiskAssessment(**item.risk_assessment_snapshot)
-
-            ps = item.pipeline_state_snapshot
-            if ps and ps.get("claim_profile") and ps.get("hazard_score"):
-                cp = ClaimProfile(**ps["claim_profile"])
-                hs = HazardScore(**ps["hazard_score"])
-            else:
-                # Old queue item — build lightweight stubs so we skip re-running LLM agents
-                cp = ClaimProfile(submission_id=submission_id, source="BENCHMARK")
-                hs = HazardScore(submission_id=submission_id)
-
-            async with AsyncSessionLocal() as fallback_session:
-                pricing_out = await pricing_agent.run(
-                    submission_id=submission_id, submission_data=sd,
-                    risk_assessment=risk, underwriter_decision=uw_decision,
-                    class_of_business=cob, jurisdiction=jur, session=fallback_session,
-                )
-                gov_decision = await governance_agent.run(
-                    submission_id=submission_id, submission_data=sd,
-                    claim_profile=cp, hazard_score=hs, risk_assessment=risk,
-                    underwriter_decision=uw_decision, pricing_output=pricing_out,
-                    class_of_business=cob, jurisdiction=jur, session=fallback_session,
-                )
-                await fallback_session.commit()
-
-            gov_outcome = gov_decision.governance_outcome
-            wf_status = (
-                "COMPLETED" if gov_outcome == "APPROVED"
-                else "AWAITING_SENIOR_REVIEW" if gov_outcome == "REFER_TO_SENIOR_UNDERWRITER"
-                else "GOVERNANCE_REJECTED"
-            )
-            final_state = {
-                "workflow_status":     wf_status,
-                "pricing_output":      pricing_out.model_dump(mode="json"),
-                "governance_decision": gov_decision.model_dump(mode="json"),
-            }
-        except HTTPException:
-            raise
-        except Exception as fallback_exc:
-            raise HTTPException(status_code=500, detail=f"Resume failed: {fallback_exc}") from fallback_exc
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail=f"Pipeline resume failed: {exc}"

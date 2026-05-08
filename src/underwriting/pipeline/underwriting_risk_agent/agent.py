@@ -11,8 +11,10 @@ from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
 from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
 from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
 from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
+from underwriting.platform.llm.parsing import extract_first_json_object
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -169,22 +171,6 @@ def _build_pre_screen_assessment(
     )
 
 
-# ── JSON helpers ──────────────────────────────────────────────────────────────
-
-def _extract_first_json_object(text: str) -> str:
-    start = text.find("{")
-    if start == -1:
-        return text
-    depth = 0
-    for i, ch in enumerate(text[start:], start):
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return text[start:]
-
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
@@ -212,7 +198,7 @@ async def run(
             "underwriting_risk_agent: pre-screen triggered  rule=%r  decision=%s  submission=%s",
             rule, decision, submission_id,
         )
-        return _build_pre_screen_assessment(
+        assessment = _build_pre_screen_assessment(
             submission_id=submission_id,
             decision=decision,
             rule=rule,
@@ -220,6 +206,17 @@ async def run(
             claim_profile=claim_profile,
             hazard_score=hazard_score,
         )
+        await record_agent_decision(
+            session=session,
+            submission_id=submission_id,
+            agent_name=AGENT_NAME,
+            event_type="RISK_ASSESSED_PRE_SCREEN",
+            decision_value=assessment.risk_decision,
+            decision_rationale=rule,
+            confidence_score=float(assessment.confidence_score),
+            parsed_output=assessment.model_dump(mode="json"),
+        )
+        return assessment
 
     # ── Step 2: LLM synthesis ─────────────────────────────────────────────────
     logger.info(
@@ -267,13 +264,15 @@ async def run(
             feature_tag="risk_assessment",
         )
 
+        if not response.content:
+            raise ValueError("LLM returned empty response")
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             lines = raw.splitlines()
             raw = "\n".join(lines[1:-1]).strip()
 
         try:
-            data = json.loads(_extract_first_json_object(raw))
+            data = json.loads(extract_first_json_object(raw))
             data["submission_id"] = submission_id
             # Normalise common LLM field name variations
             if "decision" in data and "risk_decision" not in data:
@@ -301,6 +300,16 @@ async def run(
             logger.info(
                 "underwriting_risk_agent: LLM decision=%s  score=%.2f  confidence=%.2f",
                 assessment.risk_decision, assessment.risk_score, assessment.confidence_score,
+            )
+            await record_agent_decision(
+                session=session,
+                submission_id=submission_id,
+                agent_name=AGENT_NAME,
+                event_type="RISK_ASSESSED",
+                decision_value=assessment.risk_decision,
+                decision_rationale=assessment.decision_rationale,
+                confidence_score=float(assessment.confidence_score),
+                parsed_output=assessment.model_dump(mode="json"),
             )
             return assessment
 

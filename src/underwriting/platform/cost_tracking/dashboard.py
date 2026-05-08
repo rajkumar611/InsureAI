@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, text
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting",
-).replace("+asyncpg", "")  # streamlit uses sync driver
+).replace("+asyncpg", "+psycopg")  # streamlit uses sync psycopg3 driver
 
 
 @st.cache_data(ttl=30)
@@ -42,7 +42,6 @@ def load_cost_data() -> pd.DataFrame:
 
 
 def main() -> None:
-    st.set_page_config(page_title="AI Underwriting System — Cost Dashboard", layout="wide")
     st.title("AI Underwriting System — LLM Cost Dashboard")
 
     try:

@@ -11,8 +11,10 @@ from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionDat
 from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
 from underwriting.pipeline.pricing_agent.schemas import PaymentOption, PremiumDiscount, PremiumLoading, PricingOutput
 from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
+from underwriting.platform.audit.writer import record_agent_decision
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
+from underwriting.platform.llm.parsing import extract_first_json_object
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
@@ -153,22 +155,6 @@ def _compute_premium(
     }
 
 
-# ── JSON helpers ──────────────────────────────────────────────────────────────
-
-def _extract_first_json_object(text: str) -> str:
-    start = text.find("{")
-    if start == -1:
-        return text
-    depth = 0
-    for i, ch in enumerate(text[start:], start):
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return text[start:]
-
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
@@ -260,13 +246,15 @@ async def run(
             feature_tag="pricing",
         )
 
+        if not response.content:
+            raise ValueError("LLM returned empty response")
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             lines = raw.splitlines()
             raw = "\n".join(lines[1:-1]).strip()
 
         try:
-            llm_text = json.loads(_extract_first_json_object(raw))
+            llm_text = json.loads(extract_first_json_object(raw))
             break
         except (json.JSONDecodeError, ValueError) as exc:
             logger.warning("pricing_agent: rationale parse failed attempt %d — %s", attempt, exc)
@@ -293,5 +281,14 @@ async def run(
     logger.info(
         "pricing_agent: success  final_premium=%s %s",
         output.final_premium, output.premium_currency,
+    )
+    await record_agent_decision(
+        session=session,
+        submission_id=submission_id,
+        agent_name=AGENT_NAME,
+        event_type="PRICING_CALCULATED",
+        decision_value=f"{output.final_premium} {output.premium_currency}",
+        parsed_output=output.model_dump(mode="json"),
+        prompt_version=ACTUARIAL_TABLE_VERSION,
     )
     return output

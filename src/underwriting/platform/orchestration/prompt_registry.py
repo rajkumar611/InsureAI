@@ -113,22 +113,3 @@ class PromptRegistry:
             body=body,
         )
 
-    @staticmethod
-    def list_versions(agent: str) -> list[dict]:
-        """Return all versions for an agent with their status."""
-        agent_dir = PROMPTS_ROOT / agent
-        if not agent_dir.exists():
-            return []
-        results = []
-        for path in sorted(agent_dir.glob("v*.md")):
-            content = path.read_text(encoding="utf-8")
-            parts = content.split("---", maxsplit=2)
-            if len(parts) >= 3:
-                meta = yaml.safe_load(parts[1])
-                results.append({
-                    "version": meta.get("version"),
-                    "status": meta.get("status"),
-                    "created": meta.get("created"),
-                    "changed": meta.get("changed"),
-                })
-        return results

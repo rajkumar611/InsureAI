@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline.document_ingestion_agent.agent import run as ingest
 from underwriting.platform.database.connection import get_session
-from underwriting.platform.database.models import Submission
+from underwriting.platform.database.models import AuditEntry, Submission
 
 router = APIRouter()
 
@@ -173,3 +173,43 @@ async def get_submission(
         "extracted_data": result.extracted_data,
         "received_at": result.received_at.isoformat() if result.received_at else None,
     }
+
+
+@router.get(
+    "/audit/{submission_id}",
+    summary="Get audit trail for a submission",
+)
+async def get_audit_trail(
+    submission_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict]:
+    try:
+        sid = uuid.UUID(submission_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid submission_id — must be a UUID")
+
+    rows = await session.execute(
+        select(AuditEntry)
+        .where(AuditEntry.submission_id == sid)
+        .order_by(AuditEntry.id)
+    )
+    entries = rows.scalars().all()
+
+    return [
+        {
+            "id": entry.id,
+            "agent_name": entry.agent_name,
+            "event_type": entry.event_type,
+            "decision_value": entry.decision_value,
+            "decision_rationale": entry.decision_rationale,
+            "confidence_score": float(entry.confidence_score) if entry.confidence_score else None,
+            "parsed_output": entry.parsed_output,
+            "prompt_version": entry.prompt_version,
+            "underwriter_id": entry.underwriter_id,
+            "override_reason": entry.override_reason,
+            "entry_hash": entry.entry_hash,
+            "previous_hash": entry.previous_hash,
+            "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+        }
+        for entry in entries
+    ]

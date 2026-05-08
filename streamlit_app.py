@@ -13,14 +13,11 @@ import uuid
 
 import httpx
 import streamlit as st
+from underwriting.platform.cost_tracking.dashboard import main as _cost_dashboard_main
 
 API_BASE = os.getenv("API_BASE", "http://localhost:8081/api/v1")
 TIMEOUT = 300  # seconds — pipeline can take 2-3 minutes
 
-@st.cache_resource
-def _queue_bg() -> dict:
-    """Persists across Streamlit reruns — holds background fetch results keyed by session id."""
-    return {}
 
 st.set_page_config(
     page_title="AI Underwriting System",
@@ -527,6 +524,7 @@ def page_underwriter_queue():
         ("dec_params", None),
         ("dec_result", None),
         ("dec_submission_ref", None),
+        ("queue_page", 1),
     ]:
         if _k not in st.session_state:
             st.session_state[_k] = _v
@@ -584,7 +582,7 @@ def page_underwriter_queue():
         else:
             st.session_state.dec_result = {"data": result_holder["data"]}
 
-        st.session_state.queue_cache = None
+        st.session_state.queue_page = 1
         st.rerun()
 
     # ── Decision result ───────────────────────────────────────────────────────
@@ -630,44 +628,34 @@ def page_underwriter_queue():
         return
 
     # ── Queue list ────────────────────────────────────────────────────────────
-    col_refresh, col_status, _ = st.columns([1, 3, 2])
+    if "queue_page" not in st.session_state:
+        st.session_state.queue_page = 1
 
+    col_refresh, _ = st.columns([1, 5])
     if col_refresh.button("Refresh"):
-        st.session_state.queue_cache = None
-        st.session_state.queue_reveal_count = 0
+        st.session_state.queue_page = 1
         st.rerun()
 
-    sess_key = id(st.session_state)
-
-    if st.session_state.queue_cache is None:
-        if sess_key not in _queue_bg():
-            _start_queue_fetch(sess_key)
-
-        holder = _queue_bg().get(sess_key, {})
-        if holder.get("done"):
-            st.session_state.queue_cache = holder["data"]
-            st.session_state.queue_reveal_count = 0
-            _queue_bg().pop(sess_key, None)
-            st.rerun()
-        else:
-            col_status.info("⏳ Loading queue items...")
-            time.sleep(0.5)
-            st.rerun()
+    try:
+        r = httpx.get(f"{API_BASE}/queue", params={"page": st.session_state.queue_page}, timeout=10)
+        r.raise_for_status()
+        payload = r.json()
+    except Exception as e:
+        st.error(f"Could not load queue: {e}")
         return
 
-    queue_items = st.session_state.queue_cache or []
+    queue_items = payload.get("items", [])
+    total = payload.get("total", 0)
+    total_pages = payload.get("total_pages", 1)
+    page = payload.get("page", 1)
 
-    if not queue_items:
+    if total == 0:
         st.info("No submissions pending review.")
         return
 
-    st.write(f"**{len(queue_items)} item(s) pending review**")
+    st.write(f"**{total} item(s) pending review** — Page {page} of {total_pages}")
 
-    reveal_key = "queue_reveal_count"
-    revealed = st.session_state.get(reveal_key, 0)
-    visible_items = queue_items[:revealed]
-
-    for item in visible_items:
+    for item in queue_items:
         ra = item.get("risk_assessment") or {}
         decision = ra.get("risk_decision", "?")
         score = ra.get("risk_score", 0)
@@ -732,10 +720,24 @@ def page_underwriter_queue():
                 }
                 st.rerun()
 
-    if revealed < len(queue_items):
-        st.session_state[reveal_key] = revealed + 1
-        time.sleep(0.2)
-        st.rerun()
+    # ── Page navigation ───────────────────────────────────────────────────────
+    if total_pages > 1:
+        st.divider()
+        nav_cols = st.columns([1, 2, 1])
+        if nav_cols[0].button("← Previous", disabled=(page <= 1)):
+            st.session_state.queue_page = page - 1
+            st.rerun()
+        nav_cols[1].markdown(
+            f"<div style='text-align:center;padding-top:6px;'>Page {page} of {total_pages}</div>",
+            unsafe_allow_html=True,
+        )
+        if nav_cols[2].button("Next →", disabled=(page >= total_pages)):
+            st.session_state.queue_page = page + 1
+            st.rerun()
+
+
+def page_cost_dashboard():
+    _cost_dashboard_main()
 
 
 def page_submission_lookup():
@@ -777,32 +779,136 @@ def page_submission_lookup():
                 st.json(data["extracted_data"])
 
 
+# ── Audit Trail page ─────────────────────────────────────────────────────────
+
+_AUDIT_COLOURS = {
+    "DOCUMENT_INGESTED":        "#1565C0",
+    "CLAIMS_PROFILE_GENERATED": "#6A1B9A",
+    "HAZARD_EVALUATED":         "#E65100",
+    "RISK_ASSESSED":            "#B71C1C",
+    "RISK_ASSESSED_PRE_SCREEN": "#B71C1C",
+    "UNDERWRITER_DECISION":     "#F57F17",
+    "PRICING_CALCULATED":       "#1B5E20",
+    "GOVERNANCE_DECISION":      "#00695C",
+}
+
+_DECISION_COLOURS = {
+    "ACCEPT": "green", "DECLINE": "red", "REFER": "orange",
+    "APPROVED": "green", "REJECTED": "red", "REFER_TO_SENIOR_UNDERWRITER": "orange",
+    "APPROVE": "green", "OVERRIDE": "orange",
+    "high": "green", "medium": "orange", "low": "red",
+    "LOW": "green", "MODERATE": "orange", "HIGH": "red", "EXTREME": "red",
+    "CUSTOMER_HISTORY": "green", "BENCHMARK": "blue",
+}
+
+
+def page_audit_trail():
+    st.title("Audit Trail")
+    st.caption(
+        "Immutable decision log — every agent decision for a submission, "
+        "hash-chained for tamper detection."
+    )
+
+    policy_input = st.text_input("Policy Number or Submission ID", placeholder="e.g. P0001234PPY")
+
+    if not (st.button("Load Audit Trail", type="primary") and policy_input.strip()):
+        return
+
+    # Resolve policy number → submission ID via the submissions API
+    try:
+        resp = httpx.get(f"{API_BASE}/submissions/{policy_input.strip()}", timeout=10)
+        if resp.status_code == 404:
+            st.error(f"No submission found for: {policy_input.strip()}")
+            return
+        resp.raise_for_status()
+        sub_data = resp.json()
+        submission_id = sub_data.get("submission_id") or sub_data.get("id")
+        policy_ref = sub_data.get("submission_ref", policy_input.strip())
+    except Exception as e:
+        st.error(f"Could not resolve submission: {e}")
+        return
+
+    # Fetch audit entries via API
+    try:
+        audit_resp = httpx.get(f"{API_BASE}/audit/{submission_id}", timeout=10)
+        audit_resp.raise_for_status()
+        entries = audit_resp.json()
+    except Exception as e:
+        st.error(f"Could not load audit trail: {e}")
+        return
+
+    if not entries:
+        st.warning("No audit entries found for this submission yet.")
+        return
+
+    st.divider()
+    st.subheader(f"Audit Trail — {policy_ref}")
+    st.write(f"**{len(entries)} agent decision(s) recorded**")
+
+    # Hash chain verification
+    chain_ok = True
+    for i, entry in enumerate(entries):
+        if i == 0:
+            continue
+        if entry.get("previous_hash") != entries[i - 1].get("entry_hash"):
+            chain_ok = False
+            break
+
+    if chain_ok:
+        st.success("Hash chain intact — audit trail has not been tampered with.")
+    else:
+        st.error("Hash chain broken — one or more entries may have been modified.")
+
+    st.divider()
+
+    for entry in entries:
+        event = entry.get("event_type", "?")
+        agent = entry.get("agent_name", "?")
+        decision = entry.get("decision_value", "")
+        ts = entry.get("timestamp", "")[:19].replace("T", " ")
+        conf = entry.get("confidence_score")
+        colour = _AUDIT_COLOURS.get(event, "#555")
+        dec_colour = _DECISION_COLOURS.get(decision, "gray")
+
+        header = (
+            f'<span style="background:{colour};color:white;padding:3px 10px;'
+            f'border-radius:12px;font-size:0.85rem;font-weight:600;">{event}</span>'
+            f'&nbsp;&nbsp;<b>{agent}</b>'
+            f'&nbsp;&nbsp;:{dec_colour}[**{decision}**]'
+            + (f"&nbsp;&nbsp;conf: **{conf:.2f}**" if conf else "")
+            + f"&nbsp;&nbsp;<small style='color:#888;'>{ts}</small>"
+        )
+
+        with st.expander(f"{event} — {agent} — {decision}", expanded=False):
+            st.markdown(header, unsafe_allow_html=True)
+            cols = st.columns(2)
+            cols[0].write(f"**Event:** {event}")
+            cols[0].write(f"**Agent:** {agent}")
+            cols[0].write(f"**Decision:** {decision}")
+            cols[1].write(f"**Confidence:** {f'{conf:.2f}' if conf else 'N/A'}")
+            cols[1].write(f"**Timestamp:** {ts}")
+            if entry.get("underwriter_id"):
+                cols[1].write(f"**Underwriter:** {entry['underwriter_id']}")
+            if entry.get("decision_rationale"):
+                st.write(f"**Rationale:** {entry['decision_rationale']}")
+            if entry.get("override_reason"):
+                st.warning(f"**Override reason:** {entry['override_reason']}")
+            st.caption(f"Entry hash: `{entry.get('entry_hash', 'N/A')}`")
+            st.caption(f"Previous hash: `{entry.get('previous_hash', 'N/A') or 'first entry'}`")
+            if entry.get("parsed_output"):
+                with st.expander("Full agent output (JSON)", expanded=False):
+                    st.json(entry["parsed_output"])
+
+
 # ── Navigation ────────────────────────────────────────────────────────────────
 
-def _start_queue_fetch(sess_key: int) -> None:
-    """Kick off a background thread to fetch the queue list without blocking the UI."""
-    _queue_bg()[sess_key] = {"done": False, "data": None}
-
-    def _run() -> None:
-        try:
-            r = httpx.get(f"{API_BASE}/queue", timeout=10)
-            _queue_bg()[sess_key]["data"] = r.json() if r.is_success else []
-        except Exception:
-            _queue_bg()[sess_key]["data"] = []
-        _queue_bg()[sess_key]["done"] = True
-
-    threading.Thread(target=_run, daemon=True).start()
-
-
-# Kick off background queue fetch immediately on session start — no blocking.
-if "queue_cache" not in st.session_state:
-    st.session_state.queue_cache = None
-    _start_queue_fetch(id(st.session_state))  # fires and returns instantly
 
 pg = st.navigation([
-    st.Page(page_how_it_works,      title="How It Works",       icon="ℹ️"),
-    st.Page(page_submit_document,   title="Submit Document",     icon="📄"),
+    st.Page(page_how_it_works,      title="How It Works",           icon="ℹ️"),
+    st.Page(page_submit_document,   title="Submit Document",         icon="📄"),
     st.Page(page_underwriter_queue, title="Underwriter Review Queue", icon="📋"),
-    st.Page(page_submission_lookup, title="Submission Lookup",   icon="🔍"),
+    st.Page(page_submission_lookup, title="Submission Lookup",       icon="🔍"),
+    st.Page(page_audit_trail,       title="Audit Trail",             icon="🔒"),
+    st.Page(page_cost_dashboard,    title="LLM Cost Dashboard",      icon="💰"),
 ])
 pg.run()

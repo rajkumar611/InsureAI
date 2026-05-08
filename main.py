@@ -3,8 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from underwriting.platform.database.connection import engine
+from underwriting.platform.database.connection import engine, _settings as _db_settings
 from underwriting.platform.database.models import Base
+from underwriting.platform.orchestration.workflow import init_workflow, close_workflow
 from underwriting.api.routers import submissions, health, pipeline
 
 
@@ -12,7 +13,9 @@ from underwriting.api.routers import submissions, health, pipeline
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await init_workflow(_db_settings.DATABASE_URL)
     yield
+    await close_workflow()
     await engine.dispose()
 
 

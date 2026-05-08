@@ -16,18 +16,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   api:
     build: .
     ports:
@@ -35,11 +23,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://qbe:localdev@postgres:5432/aus_underwriting
-      REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     volumes:
       - .:/app
@@ -59,4 +44,3 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
