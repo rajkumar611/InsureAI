@@ -749,7 +749,7 @@ docker compose up postgres -d
 # 4. Install dependencies
 uv sync
 
-# 5. Run database migrations (creates all tables + pgvector extension)
+# 5. Run migrations — creates all tables on first run, applies new changes on subsequent runs
 uv run alembic upgrade head
 
 # 6. Seed benchmark data (15 customers, 15 claims, 15 embeddings, 8 regulations)
