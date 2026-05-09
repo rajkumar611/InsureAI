@@ -112,12 +112,14 @@ uv run pytest
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Health check |
+| GET | `/health` | Liveness check |
+| GET | `/health/ready` | Readiness check — DB connectivity |
 | POST | `/api/v1/submissions` | Create submission record |
-| GET | `/api/v1/submissions/{id}` | Get submission by ID |
-| GET | `/api/v1/submissions/{id}/progress` | Real-time pipeline progress |
+| GET | `/api/v1/submissions/{ref}` | Get submission by policy number or UUID |
+| GET | `/api/v1/submissions/{submission_id}/progress` | Real-time pipeline progress |
 | POST | `/api/v1/submissions/ingest` | Document ingestion only (no workflow) |
 | POST | `/api/v1/submissions/pipeline` | Ingest document + run full pipeline |
+| GET | `/api/v1/audit/{submission_id}` | Audit trail for a submission |
 | GET | `/api/v1/queue` | List pending underwriter queue items |
 | GET | `/api/v1/queue/{queue_id}` | Get queue item with full submission details |
 | POST | `/api/v1/queue/{queue_id}/decision` | Submit underwriter decision + resume pipeline |
@@ -159,9 +161,9 @@ Fires before any LLM call:
 - `overall_hazard_level == EXTREME` AND `total_claims_3yr > 2` → auto-DECLINE
 - `FRAUD_SUSPICION` in risk flags → auto-DECLINE
 - `sum_insured > NZD/AUD 50,000,000` → auto-REFER
-- `data_quality == LOW` → auto-REFER
 - `hazard_score.confidence < 0.50` → auto-REFER
 - `extraction_confidence == low` → auto-REFER
+- `data_quality == LOW` → NOT a pre-screen rule; penalises confidence score (−0.15) and goes to LLM
 
 ### Database
 - PostgreSQL 17 + pgvector via Docker

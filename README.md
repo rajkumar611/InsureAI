@@ -211,9 +211,10 @@ The primary decision agent. Runs a **deterministic pre-screen before any LLM cal
 | `hazard_level == EXTREME` AND `total_claims_3yr > 2` | **DECLINE** · `risk_score=0.95` |
 | `"FRAUD_SUSPICION"` in `claim_profile.risk_flags` | **DECLINE** · `risk_score=0.95` |
 | `sum_insured > NZD/AUD 50,000,000` | **REFER** · `risk_score=0.80` |
-| `claim_data_quality == "LOW"` | **REFER** · `risk_score=0.80` |
 | `hazard_score.confidence < 0.50` | **REFER** · `risk_score=0.80` |
 | `extraction_confidence == "low"` | **REFER** · `risk_score=0.80` |
+
+Note: `claim_data_quality == "LOW"` is **not** a hard pre-screen — it penalises the confidence score (−0.15) and is passed to the LLM for nuanced judgment alongside the full submission context.
 
 #### Risk Score Formula (when pre-screen does not fire)
 
@@ -251,13 +252,20 @@ For referrals, the LangGraph workflow calls `interrupt()` to **suspend the graph
 - Recommended decision with confidence scores
 - Full submission extracted data
 
-**SLA and priority rules:**
+**Priority rules:**
 
-| Risk Score | Priority | SLA |
-|------------|----------|-----|
-| >= 0.80 | HIGH | 2 business days |
-| >= 0.60 | STANDARD | 5 business days |
-| < 0.60 | LOW | 5 business days |
+| Risk Score | Priority |
+|------------|----------|
+| >= 0.80 | HIGH |
+| >= 0.60 | STANDARD |
+| < 0.60 | LOW |
+
+**SLA deadline rules:**
+
+| Risk Score | SLA |
+|------------|-----|
+| >= 0.75 | 2 business days |
+| < 0.75 | 5 business days |
 
 Underwriter decisions: `APPROVE`, `APPROVE_WITH_CONDITIONS`, `OVERRIDE`, `DECLINE`, `REQUEST_ADDITIONAL_INFO`, `REQUEST_SURVEY`.
 
@@ -594,7 +602,7 @@ PostgreSQL 17 + pgvector, managed via Alembic migrations with async SQLAlchemy 2
 | `underwriter_queue` | HITL work queue | `sla_deadline`, `priority`, `pipeline_state_snapshot JSONB` |
 | `audit_trail` | Immutable decision log | `entry_hash`, `previous_hash`, append-only |
 | `cost_ledger` | LLM token costs | Per-call token counts and USD cost, append-only |
-| `regulations` | Compliance rules | Versioned NZ/AU regulatory text for governance agent |
+| `regulations` | Compliance rules | Versioned NZ/AU regulatory text — queried by governance agent |
 
 ### Migrations
 
@@ -612,12 +620,14 @@ PostgreSQL 17 + pgvector, managed via Alembic migrations with async SQLAlchemy 2
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/health` | Health check — DB connectivity |
+| `GET` | `/health` | Liveness check |
+| `GET` | `/health/ready` | Readiness check — DB connectivity |
 | `POST` | `/api/v1/submissions` | Create submission record (no pipeline) |
-| `GET` | `/api/v1/submissions/{id}` | Fetch submission by UUID |
-| `GET` | `/api/v1/submissions/{id}/progress` | Real-time pipeline progress |
+| `GET` | `/api/v1/submissions/{ref}` | Fetch submission by policy number or UUID |
+| `GET` | `/api/v1/submissions/{submission_id}/progress` | Real-time pipeline progress |
 | `POST` | `/api/v1/submissions/ingest` | Document ingestion only — no workflow started |
 | `POST` | `/api/v1/submissions/pipeline` | Full pipeline — ingest + LangGraph workflow |
+| `GET` | `/api/v1/audit/{submission_id}` | Audit trail for a submission |
 | `GET` | `/api/v1/queue` | List pending underwriter queue items (paginated) |
 | `GET` | `/api/v1/queue/{queue_id}` | Full queue item with submission and risk details |
 | `POST` | `/api/v1/queue/{queue_id}/decision` | Submit underwriter decision — resumes pipeline |
@@ -698,7 +708,7 @@ PostgreSQL 17 + pgvector, managed via Alembic migrations with async SQLAlchemy 2
 | Component | Technology |
 |-----------|-----------|
 | Underwriter UI | Streamlit (`>= 1.40.0`) |
-| Cost Dashboard | Streamlit (separate app) |
+| Cost Dashboard | Streamlit (page within the Underwriter UI) |
 
 ### Developer Tooling
 
@@ -749,10 +759,10 @@ uv run python scripts/seed_data.py
 uv run uvicorn main:app --port 8081 --reload
 
 # 8. Start the Underwriter UI (separate terminal)
-uv run streamlit run streamlit_app.py
+uv run streamlit run streamlit_app.py --server.port 8502
 
-# 9. Start the Cost Dashboard (optional, separate terminal)
-uv run streamlit run src/underwriting/platform/cost_tracking/dashboard.py
+# The Cost Dashboard is built into the Underwriter UI — no separate command needed.
+# Access it via the "LLM Cost Dashboard" page in the sidebar.
 ```
 
 ### Access Points
@@ -761,7 +771,7 @@ uv run streamlit run src/underwriting/platform/cost_tracking/dashboard.py
 |---------|-----|
 | API docs (Swagger) | http://localhost:8081/docs |
 | Underwriter UI | http://localhost:8502 |
-| Cost Dashboard | http://localhost:8503 |
+| Cost Dashboard | http://localhost:8502 (sidebar page within Underwriter UI) |
 
 ---
 
