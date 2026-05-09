@@ -692,8 +692,6 @@ PostgreSQL 17 + pgvector, managed via Alembic migrations with async SQLAlchemy 2
 |-----------|-----------|
 | Database | PostgreSQL 17 + pgvector extension |
 | Containerisation | Docker Compose |
-| Logging | structlog |
-| Observability | OpenTelemetry (`>= 1.29.0`) |
 
 ### Frontend / UI
 
