@@ -11,9 +11,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.document_ingestion_agent.agent import run as ingest
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
+from underwriting.pipeline_agents.document_ingestion_agent.agent import run as ingest
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
 from underwriting.platform.database.connection import get_session
 from underwriting.platform.database.models import CostEntry, Submission, UnderwriterQueueItem
 from underwriting.platform.orchestration.workflow import resume_pipeline, run_pipeline

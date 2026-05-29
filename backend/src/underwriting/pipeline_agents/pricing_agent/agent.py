@@ -7,11 +7,10 @@ from decimal import Decimal, ROUND_HALF_UP
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
-from underwriting.pipeline.pricing_agent.schemas import PaymentOption, PremiumDiscount, PremiumLoading, PricingOutput
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
+from underwriting.pipeline_agents.pricing_agent.schemas import PaymentOption, PremiumDiscount, PremiumLoading, PricingOutput
+from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
 from underwriting.platform.llm.parsing import extract_first_json_object
@@ -281,14 +280,5 @@ async def run(
     logger.info(
         "pricing_agent: success  final_premium=%s %s",
         output.final_premium, output.premium_currency,
-    )
-    await record_agent_decision(
-        session=session,
-        submission_id=submission_id,
-        agent_name=AGENT_NAME,
-        event_type="PRICING_CALCULATED",
-        decision_value=f"{output.final_premium} {output.premium_currency}",
-        parsed_output=output.model_dump(mode="json"),
-        prompt_version=ACTUARIAL_TABLE_VERSION,
     )
     return output

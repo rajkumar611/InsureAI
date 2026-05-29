@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
 
 _PIPELINE_URL = "/api/v1/submissions/pipeline"
 _INGEST_PATH = "underwriting.api.routers.pipeline.ingest"

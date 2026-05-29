@@ -9,7 +9,7 @@ from decimal import Decimal
 
 import pytest
 
-from underwriting.pipeline.pricing_agent.agent import _compute_premium, _market_rates
+from underwriting.pipeline_agents.pricing_agent.agent import _compute_premium, _market_rates
 
 NZ_RATES = _market_rates("property", "NZ")
 AU_RATES = _market_rates("property", "AU")

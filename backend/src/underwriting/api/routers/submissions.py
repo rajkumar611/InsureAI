@@ -8,9 +8,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.document_ingestion_agent.agent import run as ingest
+from underwriting.pipeline_agents.document_ingestion_agent.agent import run as ingest
 from underwriting.platform.database.connection import get_session
-from underwriting.platform.database.models import AuditEntry, Submission
+from underwriting.platform.database.models import Submission
+from underwriting.platform.orchestration.workflow import graph
 
 router = APIRouter()
 
@@ -179,37 +180,32 @@ async def get_submission(
     "/audit/{submission_id}",
     summary="Get audit trail for a submission",
 )
-async def get_audit_trail(
-    submission_id: str,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> list[dict]:
+async def get_audit_trail(submission_id: str) -> list[dict]:
     try:
-        sid = uuid.UUID(submission_id)
+        uuid.UUID(submission_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid submission_id — must be a UUID")
 
-    rows = await session.execute(
-        select(AuditEntry)
-        .where(AuditEntry.submission_id == sid)
-        .order_by(AuditEntry.id)
-    )
-    entries = rows.scalars().all()
+    if graph is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Workflow not initialized",
+        )
 
-    return [
-        {
-            "id": entry.id,
-            "agent_name": entry.agent_name,
-            "event_type": entry.event_type,
-            "decision_value": entry.decision_value,
-            "decision_rationale": entry.decision_rationale,
-            "confidence_score": float(entry.confidence_score) if entry.confidence_score else None,
-            "parsed_output": entry.parsed_output,
-            "prompt_version": entry.prompt_version,
-            "underwriter_id": entry.underwriter_id,
-            "override_reason": entry.override_reason,
-            "entry_hash": entry.entry_hash,
-            "previous_hash": entry.previous_hash,
-            "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
-        }
-        for entry in entries
-    ]
+    config = {"configurable": {"thread_id": submission_id}}
+    steps = []
+
+    async for state in graph.aget_state_history(config):
+        writes = state.metadata.get("writes") or {}
+        steps.append({
+            "step": state.metadata.get("step"),
+            "node": list(writes.keys()),
+            "workflow_status": state.values.get("workflow_status"),
+            "next": list(state.next),
+            "state_snapshot": state.values,
+            "checkpoint_id": state.config["configurable"].get("checkpoint_id"),
+            "created_at": state.created_at.isoformat() if state.created_at else None,
+        })
+
+    steps.reverse()
+    return steps

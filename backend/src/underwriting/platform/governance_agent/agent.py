@@ -8,13 +8,12 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
-from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
-from underwriting.pipeline.pricing_agent.schemas import PricingOutput
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.claims_history_agent.schemas import ClaimProfile
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.hazard_evaluation_agent.schemas import HazardScore
+from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
+from underwriting.pipeline_agents.pricing_agent.schemas import PricingOutput
+from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.database.models import Regulation
 from underwriting.platform.governance_agent.schemas import GovernanceDecision
@@ -139,15 +138,6 @@ async def run(
                 decision.governance_outcome,
                 len(decision.checks_passed),
                 len(decision.checks_failed),
-            )
-            await record_agent_decision(
-                session=session,
-                submission_id=submission_id,
-                agent_name=AGENT_NAME,
-                event_type="GOVERNANCE_DECISION",
-                decision_value=decision.governance_outcome,
-                parsed_output=decision.model_dump(mode="json"),
-                prompt_version=COMPLIANCE_RULES_VERSION,
             )
             return decision
 

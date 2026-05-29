@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
+from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.orchestration.workflow import _needs_human_review, route_after_risk
 
 

@@ -10,9 +10,8 @@ from pydantic import ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.claims_history_agent.schemas import ClaimProfile
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.database.models import ClaimsEmbedding, Customer
 from underwriting.platform.llm.client import anthropic_client, model_for
@@ -351,15 +350,6 @@ async def run(
             logger.info(
                 "claims_history_agent: success  flags=%s  confidence=%.2f  source=%s",
                 profile.risk_flags, profile.confidence, profile.source,
-            )
-            await record_agent_decision(
-                session=session,
-                submission_id=submission_id,
-                agent_name=AGENT_NAME,
-                event_type="CLAIMS_PROFILE_GENERATED",
-                decision_value=profile.source,
-                confidence_score=float(profile.confidence),
-                parsed_output=profile.model_dump(mode="json"),
             )
             return profile
 

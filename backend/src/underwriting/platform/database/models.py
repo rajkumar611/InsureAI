@@ -7,7 +7,6 @@ Tables:
   workflows          — LangGraph workflow state per submission
   policies           — issued insurance policies
   claims             — transactional claim records per customer/policy
-  audit_trail        — immutable decision log (append-only, hash-chained)
   cost_ledger        — every LLM call cost record (append-only)
   regulations        — versioned regulatory rules (compliance agent reads these)
   claims_embeddings  — vector store for claims history RAG (pgvector)
@@ -108,7 +107,6 @@ class Submission(Base):
 
     customer: Mapped[Customer | None] = relationship(back_populates="submissions")
     workflow: Mapped[Workflow | None] = relationship(back_populates="submission", uselist=False)
-    audit_entries: Mapped[list[AuditEntry]] = relationship(back_populates="submission")
     cost_entries: Mapped[list[CostEntry]] = relationship(back_populates="submission")
     policy: Mapped[Policy | None] = relationship(back_populates="submission", uselist=False)
 
@@ -227,47 +225,6 @@ class Claim(Base):
         Index("ix_claims_claim_date", "claim_date"),
         Index("ix_claims_jurisdiction", "jurisdiction"),
         Index("ix_claims_fraud_flag", "fraud_flag"),
-    )
-
-
-# ─── Audit Trail ──────────────────────────────────────────────────────────────
-
-class AuditEntry(Base):
-    """
-    Immutable decision log. Append-only — never updated or deleted.
-    Hash-chained: each entry includes the hash of the previous entry.
-    """
-
-    __tablename__ = "audit_trail"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submissions.id"), nullable=False)
-    policy_id: Mapped[str | None] = mapped_column(String(64))
-    workflow_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-    agent_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    prompt_version: Mapped[str | None] = mapped_column(String(64))
-    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    input_payload: Mapped[dict | None] = mapped_column(JSONB)
-    raw_llm_response: Mapped[str | None] = mapped_column(Text)
-    parsed_output: Mapped[dict | None] = mapped_column(JSONB)
-    decision_value: Mapped[str | None] = mapped_column(String(32))
-    decision_rationale: Mapped[str | None] = mapped_column(Text)
-    confidence_score: Mapped[float | None] = mapped_column(Numeric(4, 3))
-    underwriter_id: Mapped[str | None] = mapped_column(String(64))
-    override_reason: Mapped[str | None] = mapped_column(Text)
-    processing_time_ms: Mapped[int | None] = mapped_column(Integer)
-    entry_hash: Mapped[str | None] = mapped_column(String(64))
-    previous_hash: Mapped[str | None] = mapped_column(String(64))
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    submission: Mapped[Submission] = relationship(back_populates="audit_entries")
-
-    __table_args__ = (
-        Index("ix_audit_trail_submission_id", "submission_id"),
-        Index("ix_audit_trail_policy_id", "policy_id"),
-        Index("ix_audit_trail_timestamp", "timestamp"),
     )
 
 

@@ -7,11 +7,10 @@ from decimal import Decimal
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.claims_history_agent.schemas import ClaimProfile
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.hazard_evaluation_agent.schemas import HazardScore
+from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
 from underwriting.platform.llm.parsing import extract_first_json_object
@@ -206,16 +205,6 @@ async def run(
             claim_profile=claim_profile,
             hazard_score=hazard_score,
         )
-        await record_agent_decision(
-            session=session,
-            submission_id=submission_id,
-            agent_name=AGENT_NAME,
-            event_type="RISK_ASSESSED_PRE_SCREEN",
-            decision_value=assessment.risk_decision,
-            decision_rationale=rule,
-            confidence_score=float(assessment.confidence_score),
-            parsed_output=assessment.model_dump(mode="json"),
-        )
         return assessment
 
     # ── Step 2: LLM synthesis ─────────────────────────────────────────────────
@@ -300,16 +289,6 @@ async def run(
             logger.info(
                 "underwriting_risk_agent: LLM decision=%s  score=%.2f  confidence=%.2f",
                 assessment.risk_decision, assessment.risk_score, assessment.confidence_score,
-            )
-            await record_agent_decision(
-                session=session,
-                submission_id=submission_id,
-                agent_name=AGENT_NAME,
-                event_type="RISK_ASSESSED",
-                decision_value=assessment.risk_decision,
-                decision_rationale=assessment.decision_rationale,
-                confidence_score=float(assessment.confidence_score),
-                parsed_output=assessment.model_dump(mode="json"),
             )
             return assessment
 

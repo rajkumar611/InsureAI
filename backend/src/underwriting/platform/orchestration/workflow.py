@@ -11,18 +11,17 @@ from psycopg_pool import AsyncConnectionPool
 from typing_extensions import TypedDict
 
 from underwriting.platform.progress_tracker import set_step
-from underwriting.pipeline.claims_history_agent import agent as claims_agent
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.claims_history_agent.schemas import ClaimProfile
-from underwriting.pipeline.hazard_evaluation_agent import agent as hazard_agent
-from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
-from underwriting.pipeline.human_in_the_loop import agent as hitl_agent
-from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
-from underwriting.pipeline.pricing_agent import agent as pricing_agent
-from underwriting.pipeline.pricing_agent.schemas import PricingOutput
-from underwriting.pipeline.underwriting_risk_agent import agent as risk_agent
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.claims_history_agent import agent as claims_agent
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.claims_history_agent.schemas import ClaimProfile
+from underwriting.pipeline_agents.hazard_evaluation_agent import agent as hazard_agent
+from underwriting.pipeline_agents.hazard_evaluation_agent.schemas import HazardScore
+from underwriting.pipeline_agents.human_in_the_loop import agent as hitl_agent
+from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
+from underwriting.pipeline_agents.pricing_agent import agent as pricing_agent
+from underwriting.pipeline_agents.pricing_agent.schemas import PricingOutput
+from underwriting.pipeline_agents.underwriting_risk_agent import agent as risk_agent
+from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.database.connection import AsyncSessionLocal
 from underwriting.platform.governance_agent import agent as governance_agent
 from underwriting.platform.governance_agent.schemas import GovernanceDecision
@@ -182,18 +181,6 @@ async def human_review_node(state: WorkflowState) -> dict:
     logger.info("workflow: human_review resumed  action=%s  underwriter=%s", uw.action, uw.underwriter_id)
 
     async with AsyncSessionLocal() as session:
-        await record_agent_decision(
-            session=session,
-            submission_id=sid,
-            agent_name="human_in_the_loop",
-            event_type="UNDERWRITER_DECISION",
-            decision_value=uw.action,
-            decision_rationale=uw.override_reason,
-            underwriter_id=uw.underwriter_id,
-            override_reason=uw.override_reason,
-            parsed_output=uw.model_dump(mode="json"),
-        )
-        await session.commit()
 
         queue_item_fresh = await session.get(
             __import__("underwriting.platform.database.models", fromlist=["UnderwriterQueueItem"]).UnderwriterQueueItem,

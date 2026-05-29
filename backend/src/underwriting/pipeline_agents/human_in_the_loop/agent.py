@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.human_in_the_loop.schemas import UnderwriterDecision
-from underwriting.pipeline.underwriting_risk_agent.schemas import RiskAssessment
+from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
+from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.database.models import UnderwriterQueueItem
 
 logger = logging.getLogger(__name__)

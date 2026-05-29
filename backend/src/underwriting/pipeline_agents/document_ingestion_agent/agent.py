@@ -6,8 +6,7 @@ import logging
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
 from underwriting.platform.llm.parsing import strip_markdown_fences
@@ -86,17 +85,6 @@ async def run(
                 submission_data.extraction_confidence,
                 submission_data.missing_required_fields,
                 len(submission_data.anomalies),
-            )
-            _conf_map = {"high": 0.90, "medium": 0.70, "low": 0.50}
-            await record_agent_decision(
-                session=session,
-                submission_id=submission_id,
-                agent_name=AGENT_NAME,
-                event_type="DOCUMENT_INGESTED",
-                decision_value=submission_data.extraction_confidence,
-                confidence_score=_conf_map.get(submission_data.extraction_confidence or ""),
-                parsed_output=submission_data.model_dump(mode="json"),
-                prompt_version=str(prompt_template.version),
             )
             return submission_data
 

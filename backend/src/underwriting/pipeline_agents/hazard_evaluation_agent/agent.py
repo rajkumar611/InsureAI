@@ -6,9 +6,8 @@ import logging
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.pipeline.document_ingestion_agent.schemas import SubmissionData
-from underwriting.pipeline.hazard_evaluation_agent.schemas import HazardScore
-from underwriting.platform.audit.writer import record_agent_decision
+from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
+from underwriting.pipeline_agents.hazard_evaluation_agent.schemas import HazardScore
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
 from underwriting.platform.llm.client import anthropic_client, model_for
 from underwriting.platform.llm.parsing import extract_first_json_object
@@ -233,15 +232,6 @@ async def run(
             logger.info(
                 "hazard_evaluation_agent: success  overall=%s (%.2f)  confidence=%.2f",
                 score.overall_hazard_level, score.overall_hazard_score, score.confidence,
-            )
-            await record_agent_decision(
-                session=session,
-                submission_id=submission_id,
-                agent_name=AGENT_NAME,
-                event_type="HAZARD_EVALUATED",
-                decision_value=score.overall_hazard_level,
-                confidence_score=float(score.confidence),
-                parsed_output=score.model_dump(mode="json"),
             )
             return score
 
