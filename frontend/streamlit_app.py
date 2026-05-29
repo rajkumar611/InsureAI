@@ -1,5 +1,5 @@
 """
-AI Underwriting System — Underwriter UI
+INSUREAI — Underwriter UI
 
 Run with:
     uv run streamlit run streamlit_app.py
@@ -20,7 +20,7 @@ TIMEOUT = 300  # seconds — pipeline can take 2-3 minutes
 
 
 st.set_page_config(
-    page_title="AI Underwriting System",
+    page_title="INSUREAI",
     page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -35,7 +35,7 @@ st.markdown("""
     header[data-testid="stHeader"] { background: transparent; }
     [data-testid="stToolbar"] { display: none; }
 </style>
-<h1 style="margin-top:0;">AI Underwriting System</h1>
+<h1 style="margin-top:0;">INSUREAI</h1>
 <p style="text-align:center; margin-top:-0.5rem;">Enterprise Multi-Agent AI Platform</p>
 <hr/>
 <script>
