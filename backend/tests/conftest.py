@@ -34,7 +34,7 @@ async def db_session(setup_test_db) -> AsyncSession:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession):
     from httpx import ASGITransport, AsyncClient
-    from main import app
+    from backend.main import app
     from underwriting.platform.database.connection import get_session
 
     async def override_get_session():

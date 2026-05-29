@@ -13,6 +13,6 @@ if sys.platform == "win32":
 import uvicorn
 
 if __name__ == "__main__":
-    config = uvicorn.Config("main:app", host="0.0.0.0", port=8081, reload=False)
+    config = uvicorn.Config("backend.main:app", host="0.0.0.0", port=8081, reload=False)
     server = uvicorn.Server(config)
     asyncio.run(server.serve())
