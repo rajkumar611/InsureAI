@@ -905,6 +905,14 @@ cd frontend && uv run streamlit run underwriter_portal.py  # Terminal 2
 **Cause:** Dependencies not installed.
 **Fix:** `uv sync` to reinstall all deps.
 
+### Issue: "ModuleNotFoundError: No module named 'langgraph.checkpoint.postgres'"
+**Cause:** `langgraph-checkpoint-postgres` package not installed.
+**Fix:** Run `uv sync` to install all dependencies (includes langgraph-checkpoint-postgres>=3.1.0).
+
+### Issue: "ModuleNotFoundError: No module named 'backend'"
+**Cause:** PYTHONPATH not set correctly when running `backend/run.py`.
+**Fix:** Use `uv run python backend/run.py` from the project root (not from `backend/` directory). The script auto-adds `backend/src` to sys.path.
+
 ---
 
 ## 📞 Support
