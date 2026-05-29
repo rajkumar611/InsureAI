@@ -371,6 +371,15 @@ async def submit_decision(
             thread_id=submission_id,
             underwriter_decision=uw_decision,
         )
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Pipeline checkpoint is incomplete for submission {submission_id} "
+                f"(missing state key: {exc}). This submission was likely created during "
+                "a prior API error. Please resubmit the document to create a fresh pipeline."
+            ),
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail=f"Pipeline resume failed: {exc}"
