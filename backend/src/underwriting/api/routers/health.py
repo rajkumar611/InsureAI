@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.platform.database.connection import get_session
+from underwriting.database.connection import get_session
 
 router = APIRouter()
 

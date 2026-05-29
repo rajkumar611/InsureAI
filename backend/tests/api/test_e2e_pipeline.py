@@ -163,7 +163,7 @@ async def e2e_client(db_session: AsyncSession):
     """
     from httpx import ASGITransport, AsyncClient
     from main import app
-    from underwriting.platform.database.connection import get_session
+    from underwriting.database.connection import get_session
 
     async def _override_session():
         yield db_session

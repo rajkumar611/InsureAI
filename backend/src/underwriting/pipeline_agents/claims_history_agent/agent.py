@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from underwriting.pipeline_agents.claims_history_agent.schemas import ClaimProfile
 from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
-from underwriting.platform.database.models import ClaimsEmbedding, Customer
+from underwriting.database.models import ClaimsEmbedding, Customer
 from underwriting.platform.llm.client import anthropic_client, model_for
 from underwriting.platform.llm.parsing import extract_first_json_object
 from underwriting.platform.orchestration.prompt_registry import PromptRegistry

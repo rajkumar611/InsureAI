@@ -15,7 +15,7 @@ from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDe
 from underwriting.pipeline_agents.pricing_agent.schemas import PricingOutput
 from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from underwriting.platform.cost_tracking.middleware import record_llm_cost
-from underwriting.platform.database.models import Regulation
+from underwriting.database.models import Regulation
 from underwriting.platform.governance_agent.schemas import GovernanceDecision
 from underwriting.platform.llm.client import anthropic_client, model_for
 from underwriting.platform.llm.parsing import extract_first_json_object

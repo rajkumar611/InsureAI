@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from underwriting.pipeline_agents.document_ingestion_agent.agent import run as ingest
 from underwriting.pipeline_agents.document_ingestion_agent.schemas import SubmissionData
 from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
-from underwriting.platform.database.connection import get_session
-from underwriting.platform.database.models import CostEntry, Submission, UnderwriterQueueItem
+from underwriting.database.connection import get_session
+from underwriting.database.models import CostEntry, Submission, UnderwriterQueueItem
 from underwriting.platform.orchestration.workflow import resume_pipeline, run_pipeline
 from underwriting.platform.progress_tracker import clear as clear_progress, get_step, set_step
 

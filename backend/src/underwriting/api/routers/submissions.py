@@ -9,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline_agents.document_ingestion_agent.agent import run as ingest
-from underwriting.platform.database.connection import get_session
-from underwriting.platform.database.models import Submission
+from underwriting.database.connection import get_session
+from underwriting.database.models import Submission
 from underwriting.platform.orchestration.workflow import graph
 
 router = APIRouter()

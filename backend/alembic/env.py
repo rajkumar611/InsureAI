@@ -7,7 +7,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from underwriting.platform.database.models import Base
+from underwriting.database.models import Base
 
 config = context.config
 if config.config_file_name is not None:

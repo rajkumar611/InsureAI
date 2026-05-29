@@ -1,5 +1,5 @@
 import asyncio
-from underwriting.platform.database.connection import AsyncSessionLocal
+from underwriting.database.connection import AsyncSessionLocal
 from sqlalchemy import text
 
 async def main():

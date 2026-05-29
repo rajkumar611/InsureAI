@@ -10,7 +10,7 @@ TEST_DATABASE_URL = "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underw
 @pytest_asyncio.fixture(scope="session")
 async def setup_test_db():
     """Create and tear down the test database schema. Lazy — only runs when requested."""
-    from underwriting.platform.database.models import Base
+    from underwriting.database.models import Base
 
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     async with engine.begin() as conn:
@@ -35,7 +35,7 @@ async def db_session(setup_test_db) -> AsyncSession:
 async def client(db_session: AsyncSession):
     from httpx import ASGITransport, AsyncClient
     from backend.main import app
-    from underwriting.platform.database.connection import get_session
+    from underwriting.database.connection import get_session
 
     async def override_get_session():
         yield db_session

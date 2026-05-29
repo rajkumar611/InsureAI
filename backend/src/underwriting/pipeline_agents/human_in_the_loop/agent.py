@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.pipeline_agents.human_in_the_loop.schemas import UnderwriterDecision
 from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
-from underwriting.platform.database.models import UnderwriterQueueItem
+from underwriting.database.models import UnderwriterQueueItem
 
 logger = logging.getLogger(__name__)
 

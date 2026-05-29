@@ -22,7 +22,7 @@ from underwriting.pipeline_agents.pricing_agent import agent as pricing_agent
 from underwriting.pipeline_agents.pricing_agent.schemas import PricingOutput
 from underwriting.pipeline_agents.underwriting_risk_agent import agent as risk_agent
 from underwriting.pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
-from underwriting.platform.database.connection import AsyncSessionLocal
+from underwriting.database.connection import AsyncSessionLocal
 from underwriting.platform.governance_agent import agent as governance_agent
 from underwriting.platform.governance_agent.schemas import GovernanceDecision
 

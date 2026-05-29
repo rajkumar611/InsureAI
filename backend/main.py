@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from underwriting.platform.database.connection import engine, _settings as _db_settings
-from underwriting.platform.database.models import Base
+from underwriting.database.connection import engine, _settings as _db_settings
+from underwriting.database.models import Base
 from underwriting.platform.orchestration.workflow import init_workflow, close_workflow
 from underwriting.api.routers import submissions, health, pipeline
 from underwriting.api.middleware import authenticate_api_key

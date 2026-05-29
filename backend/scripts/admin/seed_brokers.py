@@ -10,8 +10,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.platform.database.connection import AsyncSessionLocal
-from underwriting.platform.database.models import Broker, ApiKey
+from underwriting.database.connection import AsyncSessionLocal
+from underwriting.database.models import Broker, ApiKey
 
 
 async def hash_api_key(plain_key: str) -> str:

@@ -6,7 +6,7 @@ from anthropic.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from underwriting.platform.cost_tracking.pricing import calculate_cost
-from underwriting.platform.database.models import CostEntry
+from underwriting.database.models import CostEntry
 
 
 async def record_llm_cost(
