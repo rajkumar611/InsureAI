@@ -1,5 +1,5 @@
 """
-Launcher for the AI Underwriting API server.
+Launcher for the INSUREAI API server.
 
 We own the event loop creation so psycopg3 async gets a SelectorEventLoop,
 not the Windows-default ProactorEventLoop which psycopg3 cannot use.

@@ -112,7 +112,7 @@ def run_evals(api_base: str, save: bool) -> int:
     passed = failed = skipped = 0
 
     print(f"\n{'─' * 72}")
-    print(f"  AI Underwriting Evals  |  API: {api_base}")
+    print(f"  INSUREAI Evals  |  API: {api_base}")
     print(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"{'─' * 72}\n")
 
@@ -198,7 +198,7 @@ def run_evals(api_base: str, save: bool) -> int:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run AI Underwriting evals")
+    parser = argparse.ArgumentParser(description="Run INSUREAI evals")
     parser.add_argument("--api", default=os.getenv("API_BASE", "http://localhost:8081/api/v1"), help="API base URL")
     parser.add_argument("--save", action="store_true", help="Save results to evals/results/")
     args = parser.parse_args()

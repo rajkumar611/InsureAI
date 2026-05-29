@@ -42,7 +42,7 @@ def load_cost_data() -> pd.DataFrame:
 
 
 def main() -> None:
-    st.title("AI Underwriting System — LLM Cost Dashboard")
+    st.title("INSUREAI — LLM Cost Dashboard")
 
     try:
         df = load_cost_data()

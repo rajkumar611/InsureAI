@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AI Underwriting System",
+    title="INSUREAI",
     description="Enterprise multi-agent AI underwriting system",
     version="1.0.0",
     lifespan=lifespan,
