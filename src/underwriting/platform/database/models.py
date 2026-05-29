@@ -12,6 +12,8 @@ Tables:
   regulations        — versioned regulatory rules (compliance agent reads these)
   claims_embeddings  — vector store for claims history RAG (pgvector)
   underwriter_queue  — human review cases and their decisions
+  brokers            — external broker organizations (API access)
+  api_keys           — API keys for broker authentication
 """
 
 from __future__ import annotations
@@ -408,4 +410,54 @@ class UnderwriterQueueItem(Base):
     __table_args__ = (
         Index("ix_queue_status_priority", "status", "priority"),
         Index("ix_queue_sla_deadline", "sla_deadline"),
+    )
+
+
+# ─── Brokers ──────────────────────────────────────────────────────────────────
+
+class Broker(Base):
+    """
+    External broker organization.
+    Each broker has one or more API keys for authentication.
+    """
+
+    __tablename__ = "brokers"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    organization: Mapped[str | None] = mapped_column(String(128))
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    api_keys: Mapped[list[ApiKey]] = relationship(back_populates="broker", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_brokers_status", "status"),
+        Index("ix_brokers_email", "email"),
+    )
+
+
+class ApiKey(Base):
+    """
+    API key for broker authentication.
+    Stores hashed key — the original plain text is never persisted.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    broker_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("brokers.id", ondelete="CASCADE"), nullable=False)
+    api_key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    broker: Mapped[Broker] = relationship(back_populates="api_keys")
+
+    __table_args__ = (
+        Index("ix_api_keys_broker_id", "broker_id"),
+        Index("ix_api_keys_api_key_hash", "api_key_hash"),
     )

@@ -619,6 +619,25 @@ PostgreSQL 17 + pgvector, managed via Alembic migrations with async SQLAlchemy 2
 
 ## API Reference
 
+### Authentication
+
+**Phase 1 (Current):** API Key authentication for broker submissions.
+
+All endpoints under `/api/v1/*` require the `X-API-Key` header:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/submissions/pipeline \
+  -H "X-API-Key: sk-broker-001-your-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"document_content": "...", "class_of_business": "property"}'
+```
+
+**Security:** API keys are hashed using **SHA256** before storage in the database. Only the hash is persisted; plain text keys are never stored. This ensures that even if the database is compromised, API keys cannot be recovered.
+
+**Future (Phase 2-3):** Azure AD integration for web portal login.
+
+### Endpoints
+
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Liveness check |

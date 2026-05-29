@@ -7,6 +7,7 @@ from underwriting.platform.database.connection import engine, _settings as _db_s
 from underwriting.platform.database.models import Base
 from underwriting.platform.orchestration.workflow import init_workflow, close_workflow
 from underwriting.api.routers import submissions, health, pipeline
+from underwriting.api.middleware import authenticate_api_key
 
 
 @asynccontextmanager
@@ -32,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.middleware("http")(authenticate_api_key)
 
 app.include_router(health.router, tags=["health"])
 app.include_router(submissions.router, prefix="/api/v1", tags=["submissions"])
