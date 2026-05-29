@@ -1,10 +1,11 @@
 import asyncio
+import os
 from datetime import datetime, timedelta, timezone
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 
-DAILY_LIMIT = 10
+DAILY_LIMIT = int(os.getenv("BROKER_DAILY_LIMIT", "10"))
 _rate_store: dict[str, dict] = {}
 _locks: dict[str, asyncio.Lock] = {}
 
