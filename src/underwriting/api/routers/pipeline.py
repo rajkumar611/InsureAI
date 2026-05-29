@@ -4,10 +4,10 @@ import os
 import time
 import uuid
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,22 +61,22 @@ def _generate_policy_number(class_of_business: str) -> str:
 
 
 class PipelineRequest(BaseModel):
-    submission_id: uuid.UUID | None = None   # client-generated UUID for progress polling
+    submission_id: uuid.UUID | None = None
     submission_ref: str | None = None
-    class_of_business: str
-    jurisdiction: str = "NZ"
-    document_content: str
+    class_of_business: Literal["property", "liability", "motor", "marine", "professional_indemnity"]
+    jurisdiction: Literal["NZ", "AU"] = "NZ"
+    document_content: str = Field(..., min_length=50, max_length=500_000)
 
 
 class QueueDecisionRequest(BaseModel):
-    underwriter_id: str
-    action: str
-    override_risk_score: float | None = None
+    underwriter_id: str = Field(..., min_length=1)
+    action: Literal["ACCEPT", "DECLINE", "REFER"]
+    override_risk_score: float | None = Field(None, ge=0.0, le=1.0)
     override_reason: str | None = None
     conditions: list[str] = []
     exclusions: list[str] = []
     supporting_documents: list[str] = []
-    notes: str = ""
+    notes: str = Field(default="", max_length=5000)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
