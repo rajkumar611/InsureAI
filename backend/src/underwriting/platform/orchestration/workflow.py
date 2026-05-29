@@ -7,7 +7,7 @@ from typing import Literal
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-from psycopg_pool import AsyncConnectionPool
+from psycopg import AsyncConnection
 from typing_extensions import TypedDict
 
 from underwriting.platform.progress_tracker import set_step
@@ -319,33 +319,34 @@ def _build_graph() -> StateGraph:
     return g
 
 
-_pool: AsyncConnectionPool | None = None
+_conn: AsyncConnection | None = None
 graph = None
 
 
 async def init_workflow(db_url: str) -> None:
-    """Call once at app startup to wire up the Postgres checkpointer."""
-    global _pool, graph
+    """Call once at app startup to wire up the PostgreSQL checkpointer."""
+    global _conn, graph
+    import psycopg
+
+    # Convert asyncpg URL to psycopg URL format
     pg_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
-    _pool = AsyncConnectionPool(
-        conninfo=pg_url,
-        max_size=5,
-        kwargs={"autocommit": True, "prepare_threshold": 0},
-        open=False,
-    )
-    await _pool.open()
-    checkpointer = AsyncPostgresSaver(_pool)
+
+    # Create async connection for checkpointer
+    _conn = await psycopg.AsyncConnection.connect(pg_url, autocommit=True)
+
+    checkpointer = AsyncPostgresSaver(_conn)
     await checkpointer.setup()
+
     graph = _build_graph().compile(checkpointer=checkpointer)
-    logger.info("workflow: Postgres checkpointer ready")
+    logger.info("workflow: PostgreSQL checkpointer ready")
 
 
 async def close_workflow() -> None:
-    """Call at app shutdown to close the connection pool."""
-    global _pool
-    if _pool:
-        await _pool.close()
-        logger.info("workflow: connection pool closed")
+    """Call at app shutdown to close the connection."""
+    global _conn
+    if _conn:
+        await _conn.close()
+        logger.info("workflow: PostgreSQL connection closed")
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
