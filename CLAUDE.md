@@ -42,7 +42,6 @@ fully built and tested end-to-end.
 | Governance Agent | `governance_agent/agent.py` | DONE | Final gatekeeper — Claude Sonnet, 4096 tokens |
 | LangGraph Workflow | `orchestration/workflow.py` | DONE | StateGraph, PostgresSaver (sync) checkpointer, interrupt/resume for HITL |
 | Cost Tracking | `cost_tracking/middleware.py` | DONE | Records token cost after every LLM call |
-| Cost Dashboard | `cost_tracking/dashboard.py` | DONE | Streamlit finance dashboard |
 | Cost Pricing | `cost_tracking/pricing.py` | DONE | Real cost calc from Anthropic token counts |
 | Prompt Registry | `orchestration/prompt_registry.py` | DONE | Versioned prompts, `{{VAR}}` rendering, cached |
 | Audit Writer | `audit/writer.py` | DONE | Hash-chained append-only decision logger |
@@ -55,8 +54,9 @@ fully built and tested end-to-end.
 | `src/underwriting/api/routers/health.py` | DONE | GET /health |
 | `src/underwriting/api/routers/submissions.py` | DONE | POST + GET /api/v1/submissions |
 | `src/underwriting/api/routers/pipeline.py` | DONE | Full pipeline + queue endpoints |
-| `streamlit_app.py` | DONE | Multi-page UI: Submit Document, Queue, Submission Lookup, LLM Cost Dashboard |
-| `main.py` | DONE | FastAPI app wiring all routers |
+| `frontend/underwriter_portal.py` | DONE | Multi-page UI: Submit Document, Queue, Submission Lookup |
+| `frontend/cost_dashboard.py` | DONE | Streamlit LLM cost analytics |
+| `backend/main.py` | DONE | FastAPI app wiring all routers |
 
 ### Infrastructure
 
@@ -96,7 +96,7 @@ start_api.bat
 
 # 6. Start the Streamlit UI (separate terminal)
 start_streamlit.bat
-# or: set VIRTUAL_ENV= && uv run streamlit run streamlit_app.py
+# or: set VIRTUAL_ENV= && uv run streamlit run frontend/underwriter_portal.py
 
 # 7. Run tests
 uv run pytest
@@ -182,41 +182,46 @@ Fires before any LLM call:
 ## Folder Structure
 
 ```
-AI_UNDERWRITING_SYSTEMS/
-├── main.py                            ← FastAPI entry point
-├── run.py                             ← Windows launcher (sets SelectorEventLoop before uvicorn)
-├── start_api.bat                      ← Demo launcher: clears VIRTUAL_ENV + starts API
-├── start_streamlit.bat                ← Demo launcher: clears VIRTUAL_ENV + starts Streamlit
-├── streamlit_app.py                   ← Underwriter UI (Submit, Queue, Lookup)
+INSUREAI/
 ├── README.md                          ← Comprehensive technical README (generated)
 ├── pyproject.toml
-├── alembic.ini
-├── docker-compose.yml
-├── Dockerfile
 ├── .env / .env.example
 │
-├── src/
-│   └── underwriting/
-│       ├── pipeline/
-│       │   ├── document_ingestion_agent/   schemas.py ✓  agent.py ✓
-│       │   ├── claims_history_agent/       schemas.py ✓  agent.py ✓
-│       │   ├── hazard_evaluation_agent/    schemas.py ✓  agent.py ✓
-│       │   ├── underwriting_risk_agent/    schemas.py ✓  agent.py ✓
-│       │   ├── human_in_the_loop/          schemas.py ✓  agent.py ✓
-│       │   └── pricing_agent/             schemas.py ✓  agent.py ✓
-│       ├── platform/
-│       │   ├── database/              models.py ✓  connection.py ✓
-│       │   ├── orchestration/         prompt_registry.py ✓  workflow.py ✓
-│       │   ├── governance_agent/      schemas.py ✓  agent.py ✓
-│       │   ├── llm/                   client.py ✓  parsing.py ✓
-│       │   ├── cost_tracking/         pricing.py ✓  middleware.py ✓  dashboard.py ✓
-│       │   ├── audit/                 writer.py ✓  (hash-chained audit trail)
-│       │   ├── progress_tracker.py ✓  (real-time pipeline step tracking)
-│       │   └── security/              (sanitiser.py not yet built)
-│       └── api/
-│           └── routers/               health.py ✓  submissions.py ✓  pipeline.py ✓
+├── frontend/
+│   ├── underwriter_portal.py          ← Streamlit UI: Submit, Queue, Lookup
+│   ├── cost_dashboard.py              ← Streamlit UI: LLM cost analytics
+│   ├── start_streamlit.bat            ← Launcher for underwriter_portal.py
 │
-├── alembic/versions/   0001 ✓  0002 ✓  0003 ✓  0004 ✓  0005 ✓  0006 ✓
+├── backend/
+│   ├── main.py                        ← FastAPI entry point
+│   ├── run.py                         ← Windows launcher (sets SelectorEventLoop before uvicorn)
+│   ├── alembic.ini
+│   ├── alembic/versions/              0001 ✓  0002 ✓  0003 ✓  0004 ✓  0005 ✓  0006 ✓
+│   ├── src/
+│   │   └── underwriting/
+│   │       ├── pipeline/
+│   │       │   ├── document_ingestion_agent/   schemas.py ✓  agent.py ✓
+│   │       │   ├── claims_history_agent/       schemas.py ✓  agent.py ✓
+│   │       │   ├── hazard_evaluation_agent/    schemas.py ✓  agent.py ✓
+│   │       │   ├── underwriting_risk_agent/    schemas.py ✓  agent.py ✓
+│   │       │   ├── human_in_the_loop/          schemas.py ✓  agent.py ✓
+│   │       │   └── pricing_agent/             schemas.py ✓  agent.py ✓
+│   │       ├── platform/
+│   │       │   ├── database/              models.py ✓  connection.py ✓
+│   │       │   ├── orchestration/         prompt_registry.py ✓  workflow.py ✓
+│   │       │   ├── governance_agent/      schemas.py ✓  agent.py ✓
+│   │       │   ├── llm/                   client.py ✓  parsing.py ✓
+│   │       │   ├── cost_tracking/         pricing.py ✓  middleware.py ✓
+│   │       │   ├── audit/                 writer.py ✓  (hash-chained audit trail)
+│   │       │   ├── progress_tracker.py ✓  (real-time pipeline step tracking)
+│   │       │   └── security/              (sanitiser.py not yet built)
+│   │       └── api/
+│   │           └── routers/               health.py ✓  submissions.py ✓  pipeline.py ✓
+│
+├── deployment/
+│   ├── Dockerfile                     ← Container image definition
+│   ├── docker-compose.yml             ← Multi-service orchestration
+│   ├── start_api.bat                  ← Launcher for API (Windows)
 ├── scripts/            seed_data.py ✓  run_ingestion.py ✓  check_db.py ✓
 ├── evals/              run_evals.py ✓  scenarios.py ✓
 ├── prompts/            all 7 agents v1.0.md ✓

@@ -1,8 +1,8 @@
 """
-INSUREAI — Underwriter UI
+INSUREAI — Underwriter Portal
 
 Run with:
-    uv run streamlit run streamlit_app.py
+    uv run streamlit run frontend/underwriter_portal.py
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import uuid
 
 import httpx
 import streamlit as st
-from underwriting.platform.cost_tracking.dashboard import main as _cost_dashboard_main
+from cost_dashboard import main as _cost_dashboard_main
 
 API_BASE = os.getenv("API_BASE", "http://localhost:8081/api/v1")
 TIMEOUT = 300  # seconds — pipeline can take 2-3 minutes

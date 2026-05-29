@@ -780,12 +780,11 @@ uv run python scripts/seed_data.py
 uv run python run.py
 # or use the batch script:  start_api.bat
 
-# 8. Start the Underwriter UI (separate terminal)
-uv run streamlit run streamlit_app.py --server.port 8502
+# 8. Start the Underwriter Portal (separate terminal)
+uv run streamlit run frontend/underwriter_portal.py --server.port 8502
 # or use the batch script:  start_streamlit.bat
 
-# The Cost Dashboard is built into the Underwriter UI — no separate command needed.
-# Access it via the "LLM Cost Dashboard" page in the sidebar.
+# The Cost Dashboard is accessible via the "LLM Cost Dashboard" page in the sidebar.
 ```
 
 ### Access Points
@@ -843,17 +842,17 @@ Seven broker documents in `samples/documents/` exercise each pipeline path:
 
 ```
 AI_UNDERWRITING_SYSTEMS/
-├── main.py                                    FastAPI entry point + router wiring
-├── run.py                                     Windows launcher — sets SelectorEventLoop before uvicorn
-├── start_api.bat                              Batch script: clears VIRTUAL_ENV + runs run.py
-├── start_streamlit.bat                        Batch script: clears VIRTUAL_ENV + runs Streamlit
-├── streamlit_app.py                           Underwriter UI (Submit · Queue · Lookup · Cost Dashboard)
-├── pyproject.toml                             Dependencies managed by uv
-├── docker-compose.yml                         PostgreSQL 17 + pgvector
-├── Dockerfile
-├── .env / .env.example
+├── frontend/
+│   ├── underwriter_portal.py                  Streamlit UI: Submit · Queue · Lookup
+│   ├── cost_dashboard.py                      Streamlit UI: LLM cost analytics
+│   └── start_streamlit.bat                    Batch script: clears VIRTUAL_ENV + runs underwriter_portal.py
 │
-├── src/underwriting/
+├── backend/
+│   ├── main.py                                FastAPI entry point + router wiring
+│   ├── run.py                                 Windows launcher — sets SelectorEventLoop before uvicorn
+│   ├── pyproject.toml                         Dependencies managed by uv
+│   ├── alembic.ini                            Database migration config
+│   └── src/underwriting/
 │   ├── pipeline/
 │   │   ├── document_ingestion_agent/
 │   │   │   ├── agent.py                       Claude Haiku extraction + injection detection
