@@ -1,13 +1,26 @@
--- INSUREAI Database Schema
--- Complete schema generated from all migrations
--- Run once: psql -U qbe -d aus_underwriting -f schema.sql
+"""
+Database schema initialization — Create all tables, indexes, and extensions.
 
+Combines init_db.py + schema_reference.sql into a single file.
+
+Usage:
+    uv run python database/admin/tables.py
+"""
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine
+
+DATABASE_URL = "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting"
+
+# Raw SQL schema embedded as string
+SCHEMA_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- CORE TABLES
 -- ────────────────────────────────────────────────────────────────────────────
 
+-- submissions: Master record for each insurance application submitted by a broker
+-- Tracks the complete lifecycle: received → extracted → underwritten → completed/declined
 CREATE TABLE IF NOT EXISTS submissions (
     id UUID PRIMARY KEY,
     submission_ref VARCHAR(64) NOT NULL UNIQUE,
@@ -24,6 +37,8 @@ CREATE TABLE IF NOT EXISTS submissions (
     missing_fields JSONB
 );
 
+-- workflows: LangGraph state machine persistence for each submission's underwriting pipeline
+-- Tracks workflow execution: current node, status, state snapshots, and error logs for resumable workflows
 CREATE TABLE IF NOT EXISTS workflows (
     id UUID PRIMARY KEY,
     submission_id UUID NOT NULL UNIQUE,
@@ -39,6 +54,8 @@ CREATE TABLE IF NOT EXISTS workflows (
     FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
 );
 
+-- cost_ledger: Financial audit trail for all LLM API calls
+-- Records token usage (input/output), model ID, cost in USD, latency, and agent responsible for each call
 CREATE TABLE IF NOT EXISTS cost_ledger (
     id BIGSERIAL PRIMARY KEY,
     submission_id UUID,
@@ -58,6 +75,8 @@ CREATE TABLE IF NOT EXISTS cost_ledger (
     FOREIGN KEY (submission_id) REFERENCES submissions(id)
 );
 
+-- regulations: Compliance rules for NZ and AU regulators (RBNZ, APRA)
+-- Stores regulatory requirements by jurisdiction and class of business with versioning support
 CREATE TABLE IF NOT EXISTS regulations (
     id SERIAL PRIMARY KEY,
     regulator VARCHAR(16) NOT NULL,
@@ -73,6 +92,8 @@ CREATE TABLE IF NOT EXISTS regulations (
     UNIQUE(rule_code, version)
 );
 
+-- claims_embeddings: Vector embeddings for historical claims used in RAG search (pgvector HNSW index)
+-- Denormalized claim data with semantic embeddings (384-dim) for similarity search during underwriting
 CREATE TABLE IF NOT EXISTS claims_embeddings (
     id BIGSERIAL PRIMARY KEY,
     customer_ref VARCHAR(64),
@@ -94,6 +115,8 @@ CREATE TABLE IF NOT EXISTS claims_embeddings (
     FOREIGN KEY (claim_id) REFERENCES claims(id)
 );
 
+-- underwriter_queue: Human-in-the-loop escalation queue for submissions requiring manual review
+-- Holds REFER decisions with SLA deadline, assigned underwriter, priority, and decision outcome
 CREATE TABLE IF NOT EXISTS underwriter_queue (
     id UUID PRIMARY KEY,
     workflow_id UUID NOT NULL UNIQUE,
@@ -116,6 +139,8 @@ CREATE TABLE IF NOT EXISTS underwriter_queue (
 -- CUSTOMER & POLICY TABLES
 -- ────────────────────────────────────────────────────────────────────────────
 
+-- customers: Master customer records for NZ and AU jurisdictions
+-- Stores individual/company details, KYC verification status, and blacklist flags for compliance
 CREATE TABLE IF NOT EXISTS customers (
     id UUID PRIMARY KEY,
     customer_ref VARCHAR(64) NOT NULL UNIQUE,
@@ -137,6 +162,8 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- policies: Issued insurance policies for customers
+-- Links customer to policy details: sum insured, premium, inception/expiry dates, and status
 CREATE TABLE IF NOT EXISTS policies (
     id UUID PRIMARY KEY,
     policy_number VARCHAR(64) NOT NULL UNIQUE,
@@ -157,6 +184,8 @@ CREATE TABLE IF NOT EXISTS policies (
     FOREIGN KEY (customer_id) REFERENCES customers(id)
 );
 
+-- claims: Historical claim records for underwriting risk assessment
+-- Stores claim details: cause of loss, amounts, fraud flags, investigation status for RAG matching
 CREATE TABLE IF NOT EXISTS claims (
     id UUID PRIMARY KEY,
     claim_number VARCHAR(64) NOT NULL UNIQUE,
@@ -187,6 +216,8 @@ CREATE TABLE IF NOT EXISTS claims (
 -- BROKER & API KEY TABLES
 -- ────────────────────────────────────────────────────────────────────────────
 
+-- brokers: Insurance brokers/partners authorized to submit documents via API
+-- Tracks broker name, contact, organization, and active status for rate limiting and validation
 CREATE TABLE IF NOT EXISTS brokers (
     id UUID PRIMARY KEY,
     name VARCHAR(128) NOT NULL UNIQUE,
@@ -197,6 +228,8 @@ CREATE TABLE IF NOT EXISTS brokers (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+-- api_keys: Hashed API keys for broker authentication and rate limiting
+-- Stores SHA256-hashed keys (plaintext never logged) with broker association and usage tracking
 CREATE TABLE IF NOT EXISTS api_keys (
     id UUID PRIMARY KEY,
     broker_id UUID NOT NULL,
@@ -251,3 +284,42 @@ CREATE INDEX IF NOT EXISTS ix_brokers_email ON brokers(email);
 
 CREATE INDEX IF NOT EXISTS ix_api_keys_broker_id ON api_keys(broker_id);
 CREATE INDEX IF NOT EXISTS ix_api_keys_api_key_hash ON api_keys(api_key_hash);
+"""
+
+
+async def init_db() -> None:
+    """Initialize database schema."""
+    engine = create_async_engine(DATABASE_URL, echo=False)
+
+    print("=" * 70)
+    print("INITIALIZING DATABASE SCHEMA")
+    print("=" * 70)
+    print()
+
+    try:
+        async with engine.begin() as conn:
+            statements = [s.strip() for s in SCHEMA_SQL.split(";") if s.strip()]
+
+            for i, stmt in enumerate(statements, 1):
+                try:
+                    await conn.execute(stmt)
+                    print(f"[{i:3d}/{len(statements)}] ✓")
+                except Exception as e:
+                    print(f"[{i:3d}/{len(statements)}] ⚠ {str(e)[:60]}")
+
+        print()
+        print("[SUCCESS] Database schema initialized!")
+        print()
+        print("Next steps:")
+        print("  1. Seed test data:     uv run python database/admin/seed_data.py")
+        print("  2. Check DB health:    uv run python database/admin/health_check_db.py")
+
+    except Exception as e:
+        print(f"[ERROR] Failed to initialize database: {e}")
+        raise
+    finally:
+        await engine.dispose()
+
+
+if __name__ == "__main__":
+    asyncio.run(init_db())

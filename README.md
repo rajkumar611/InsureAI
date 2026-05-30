@@ -43,8 +43,8 @@ uv run alembic upgrade head
 ### 3. Seed Data (Optional)
 
 ```bash
-uv run python backend/scripts/admin/seed_data.py        # 15 customers, 15 claims, 8 regulations
-uv run python backend/scripts/admin/seed_brokers.py     # Demo brokers + API keys
+uv run python database/admin/seed_data.py        # 15 customers, 15 claims, 8 regulations
+uv run python database/admin/seed_brokers.py     # Demo brokers + API keys
 ```
 
 ### 4. Start API (Terminal 1)
@@ -145,20 +145,20 @@ INSUREAI/
 │   ├── start_streamlit.bat                          Launcher (Windows)
 │   └── tests/                                        UI tests (if any)
 │
+├── database/
+│   ├── models.py                                     SQLAlchemy ORM models
+│   ├── connection.py                                 Async session + connection pool
+│   ├── tables_creation.sql                           Raw SQL schema
+│   └── admin/                                        Database setup utilities
+│       ├── seed_data.py                             Load 15 customers + 15 claims
+│       ├── seed_brokers.py                          Create demo brokers + API keys
+│       └── health_check_db.py                       Database health check
+│
 ├── backend/
 │   ├── main.py                                       FastAPI app entry point
 │   ├── run.py                                        Windows event loop fix launcher
 │   ├── alembic.ini                                  Database migration config
 │   ├── alembic/versions/                            8 migrations (0001-0008)
-│   │
-│   ├── scripts/
-│   │   ├── admin/                                   Admin utilities
-│   │   │   ├── seed_data.py                         Load 15 customers + 15 claims
-│   │   │   ├── seed_brokers.py                      Create demo brokers + API keys
-│   │   │   └── check_db.py                          Test DB connectivity
-│   │   └── dev/                                     Dev utilities
-│   │       ├── run_ingestion.py                     Test document ingestion agent
-│   │       └── test_broker_api.py                   Test API auth + rate limiting
 │   │
 │   ├── src/underwriting/
 │   │   ├── api/
@@ -209,19 +209,22 @@ INSUREAI/
 │   │       │   ├── middleware.py                   Record token costs after every LLM call
 │   │       │   └── pricing.py                      Calculate USD from token counts
 │   │       └── progress_tracker.py                  Real-time pipeline step tracking (Redis-free)
-│   │
-│   └── tests/
-│       ├── api/                                     API endpoint tests
-│       │   ├── test_health.py
-│       │   ├── test_submissions.py
-│       │   ├── test_pipeline.py
-│       │   └── test_e2e_pipeline.py
-│       ├── pipeline/                                Agent logic tests
-│       │   ├── test_pricing.py
-│       │   └── test_schemas.py
-│       └── platform/                                Orchestration tests
-│           ├── test_workflow_routing.py
-│           └── test_schemas.py
+│
+├── tests/
+│   ├── api/                                         API endpoint tests
+│   │   ├── test_health.py
+│   │   ├── test_submissions.py
+│   │   ├── test_pipeline.py
+│   │   └── test_e2e_pipeline.py
+│   ├── pipeline/                                    Agent logic tests
+│   │   ├── test_pricing.py
+│   │   └── test_schemas.py
+│   ├── platform/                                    Orchestration tests
+│   │   ├── test_workflow_routing.py
+│   │   └── test_schemas.py
+│   └── dev/                                         Manual debug utilities
+│       ├── run_ingestion.py                         Test ingestion agent in isolation
+│       └── test_broker_api.py                       E2E API + broker auth test
 │
 ├── deployment/
 │   ├── Dockerfile                                   Build container (Python 3.12 + uv)
@@ -297,7 +300,7 @@ INSUREAI/
 1. **Create broker** (via seed or manually):
    ```bash
    # Create demo brokers with API keys
-   uv run python backend/scripts/admin/seed_brokers.py
+   uv run python database/admin/seed_brokers.py
    ```
 
 2. **Use API key** in requests:
@@ -587,7 +590,7 @@ watch -n 2 'uv run pytest backend/tests -q'
 
 - **CLAUDE.md** — Full project guide for Claude Code
 - **system_prompts_config/agent_prompts/README.md** — Prompt templates
-- **backend/scripts/admin/README.md** — Admin utilities
+- **database/admin/** — Database admin utilities (seed_data, seed_brokers, health_check_db)
 - **deployment/** — Dockerfile, docker-compose.yml setup
 
 ---

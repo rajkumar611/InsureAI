@@ -1,6 +1,6 @@
 """
 Test Phase 1 API: Broker submitting a document via API key authentication.
-Usage: python scripts/test_broker_api.py
+Usage: uv run python tests/dev/test_broker_api.py
 """
 import asyncio
 import httpx
@@ -130,7 +130,7 @@ async def test_broker_submission() -> None:
 
     except httpx.ConnectError:
         print("[ERROR] Could not connect to API server")
-        print("  Make sure FastAPI is running: python run.py")
+        print("  Make sure FastAPI is running: uv run python backend/run.py")
     except Exception as e:
         print(f"[ERROR] {type(e).__name__}: {e}")
         raise

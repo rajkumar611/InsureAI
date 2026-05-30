@@ -6,15 +6,15 @@ Development and integration testing utilities for testing agents and API endpoin
 
 - **`run_ingestion.py`** — Test the document ingestion agent in isolation
   ```bash
-  python scripts/dev/run_ingestion.py                    # default: harbour_fresh
-  python scripts/dev/run_ingestion.py high_risk          # high-risk scenario
-  python scripts/dev/run_ingestion.py missing_fields     # missing data scenario
-  python scripts/dev/run_ingestion.py prompt_injection   # security test
+  uv run python tests/dev/run_ingestion.py                    # default: harbour_fresh
+  uv run python tests/dev/run_ingestion.py high_risk          # high-risk scenario
+  uv run python tests/dev/run_ingestion.py missing_fields     # missing data scenario
+  uv run python tests/dev/run_ingestion.py prompt_injection   # security test
   ```
 
 - **`test_broker_api.py`** — End-to-end API test: submit document via API
   ```bash
-  python scripts/dev/test_broker_api.py
+  uv run python tests/dev/test_broker_api.py
   ```
 
 ## When to Use

@@ -85,6 +85,7 @@ uv run pytest backend/tests -v
 
 | Feature | Status | Notes |
 |---|---|---|
+| **Underwriter Users (Azure AD)** | ⏸️ | NO User/Underwriter table yet; `assigned_underwriter_id` is just VARCHAR. Need: user table + Azure AD bearer token validation + RBAC |
 | **Prompt Injection Detector** | ⏸️ | Currently handled in LLM prompts; Python-level filter in `platform/security/sanitiser.py` not implemented |
 | **Redis Rate Limiter** | ⏸️ | Using in-memory store; Redis for distributed deployment |
 | **Webhook Notifications** | ⏸️ | POST to broker webhooks on submission completion |
@@ -193,15 +194,6 @@ backend/
 ├── alembic.ini                        ← Migration config
 ├── alembic/versions/                  ← 8 migrations (0001-0008)
 │
-├── scripts/
-│   ├── admin/
-│   │   ├── seed_data.py              ← Load 15 customers + 15 claims
-│   │   ├── seed_brokers.py           ← Create demo brokers + API keys
-│   │   └── check_db.py               ← Test DB connectivity
-│   └── dev/
-│       ├── run_ingestion.py          ← Test ingestion agent standalone
-│       └── test_broker_api.py        ← Test API auth + rate limiting
-│
 ├── src/underwriting/
 │   ├── api/
 │   │   ├── middleware/
@@ -275,19 +267,42 @@ backend/
 │       │   └── pricing.py            ← Calculate USD from tokens
 │       │
 │       └── progress_tracker.py       ← Real-time pipeline progress (no Redis)
-│
-└── tests/
-    ├── api/
-    │   ├── test_health.py            ← Health check tests
-    │   ├── test_submissions.py       ← Submission CRUD tests
-    │   ├── test_pipeline.py          ← Pipeline endpoint tests
-    │   └── test_e2e_pipeline.py      ← Full workflow E2E
-    ├── pipeline/
-    │   ├── test_pricing.py           ← Pricing agent logic
-    │   └── test_schemas.py           ← Schema validation
-    └── platform/
-        ├── test_workflow_routing.py  ← Workflow branch logic
-        └── test_schemas.py           ← Platform schema tests
+```
+
+### database/ — ORM Models & Setup Scripts
+
+```
+database/
+├── connection.py                      ← Async session + PostgreSQL pool
+├── models.py                          ← SQLAlchemy ORM models
+├── init_schema.py                     ← Schema initialization utilities
+└── admin/
+    ├── init_db.py                     ← Initialize database (tables + indexes)
+    ├── health_check_db.py             ← Database health check
+    ├── seed_data.py                   ← Load 15 customers + 120 claims
+    ├── seed_brokers.py                ← Create test broker accounts + API keys
+    └── schema_reference.sql           ← Raw SQL schema (reference)
+```
+
+### tests/ — Automated & Manual Tests
+
+```
+tests/
+├── conftest.py                        ← Pytest fixtures + setup
+├── api/
+│   ├── test_health.py                ← Health check tests
+│   ├── test_submissions.py           ← Submission CRUD tests
+│   ├── test_pipeline.py              ← Pipeline endpoint tests
+│   └── test_e2e_pipeline.py          ← Full workflow E2E
+├── pipeline/
+│   ├── test_pricing.py               ← Pricing agent logic
+│   └── test_schemas.py               ← Schema validation
+├── platform/
+│   ├── test_workflow_routing.py      ← Workflow branch logic
+│   └── test_schemas.py               ← Platform schema tests
+└── dev/
+    ├── run_ingestion.py              ← Test ingestion agent standalone
+    └── test_broker_api.py            ← Test API auth + rate limiting
 ```
 
 ### deployment/ — Docker & Infrastructure
@@ -471,6 +486,140 @@ curl http://localhost:8081/api/v1/submissions/uuid-2/cost \
   ]
 }
 ```
+
+---
+
+## 📊 Database Seeding Strategy
+
+### Architecture: Three Seeding Layers
+
+```
+database/admin/
+├── init_db.py              ← [0] CREATE schema (tables + indexes)
+├── seed_data.py            ← [1] LOAD business domain data
+├── seed_brokers.py         ← [2] CREATE external partner accounts
+└── health_check_db.py      ← Verify database health
+```
+
+### Layer 1️⃣: `init_db.py` — Schema Initialization
+**What:** Creates all tables, extensions (pgvector), and indexes from `tables_creation.sql`
+**When:** First time setup OR fresh database
+**Data Impact:** NONE (schema only)
+**Command:** `uv run python database/admin/init_db.py`
+
+### Layer 2️⃣: `seed_data.py` — Business Domain Data
+**What:** Populates CUSTOMERS, CLAIMS, REGULATIONS, EMBEDDINGS for testing
+**Who:** Insurance applicants (external), historical claim records
+**Records:** 15 customers, 120+ claims, 50+ regulations
+**Use Case:** When broker submits "Pacific Properties", RAG search finds their historical claims
+**Command:** `uv run python database/admin/seed_data.py`
+
+```python
+# What gets created:
+CUSTOMERS (15 records)
+├── ID: UUID
+├── customer_ref: "CUST-NZ-001"
+├── full_name: "James Tane" or "Pacific Properties Limited"
+├── abn_nzbn: Tax ID (optional)
+├── jurisdiction: "NZ" or "AU"
+└── kyc_status: "VERIFIED"
+
+CLAIMS (120+ records, linked to customers)
+├── claim_number: "CLM-2023-001"
+├── customer_id: (FK to CUSTOMERS)
+├── cause_of_loss: "Fire damage", "Water damage", etc.
+├── incurred_amount: 50000.00
+├── claim_date: TIMESTAMP
+└── is_large_loss: BOOLEAN
+
+REGULATIONS (50+ records)
+├── jurisdiction: "NZ" or "AU"
+├── class_of_business: "property", "motor", etc.
+├── rule_code: "NZ-PROP-001"
+├── rule_description: Compliance rule text
+└── effective_date: TIMESTAMP
+
+CLAIMS_EMBEDDINGS (384-dim vectors for pgvector search)
+├── customer_ref, claim_id
+├── embedding: vector(384) — for semantic search
+└── Used by: claims_history_agent for RAG
+```
+
+### Layer 3️⃣: `seed_brokers.py` — External Partner Accounts
+**What:** Creates BROKERS and API_KEYS for external API consumers
+**Who:** Insurance brokers (external partners submitting documents)
+**Records:** 3 demo brokers, 3 API keys
+**Use Case:** Broker calls `POST /api/v1/submissions/pipeline` with X-API-Key header
+**Command:** `uv run python database/admin/seed_brokers.py`
+
+```python
+# What gets created:
+BROKERS (3 records)
+├── name: "Acme Insurance Brokers"
+├── email: "api@acmeinsurance.com"
+├── organization: "Acme Inc"
+├── status: "ACTIVE"
+└── created_at: TIMESTAMP
+
+API_KEYS (1 per broker)
+├── broker_id: (FK to BROKERS)
+├── api_key_hash: SHA256("sk-broker-001-acme-test-key-2026")
+└── created_at: TIMESTAMP
+
+# API key is printed during seeding:
+API Key (SAVE THIS): sk-broker-001-acme-test-key-2026
+```
+
+### Complete Setup Flow
+
+```bash
+# Step 1: Initialize schema (tables + indexes)
+uv run python database/admin/init_db.py
+
+# Step 2: Load test customer data + claims history
+uv run python database/admin/seed_data.py
+
+# Step 3: Create broker accounts + API keys
+uv run python database/admin/seed_brokers.py
+
+# Step 4: Verify database is healthy
+uv run python database/admin/health_check_db.py
+
+# Step 5: Start API and test
+uv run python backend/run.py
+# In another terminal:
+uv run python tests/dev/test_broker_api.py
+```
+
+### ⚠️ Important: Missing Underwriter Users
+
+**Current Status:** NO User/Underwriter table yet!
+
+**What's Missing for Azure AD Integration:**
+```python
+# TODO: Create this table (Phase X)
+class Underwriter(Base):
+    __tablename__ = "underwriters"
+    id = Column(UUID, primary_key=True)
+    email = Column(String(128), unique=True)  # user@qbe.co.nz
+    name = Column(String(128))
+    azure_ad_oid = Column(String(255), unique=True)  # From Azure AD token
+    role = Column(String(32))  # "SENIOR_UW", "JUNIOR_UW", "MANAGER"
+    department = Column(String(64))  # "Property", "Liability", "Motor"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime)
+
+# Currently, UnderwriterQueueItem.assigned_underwriter_id is just VARCHAR
+# This needs to be refactored to FK → underwriters.id
+```
+
+**Why It Matters:**
+1. Underwriter Portal (/login) needs Azure AD bearer token validation
+2. Audit trail needs to record WHO made the decision
+3. Human escalation queue needs proper user assignment
+4. Future: RBAC for department-specific workflows
+
+**Next Steps:** Create seed_underwriters.py + add Underwriter model in Phase X
 
 ---
 

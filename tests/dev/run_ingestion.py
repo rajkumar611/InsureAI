@@ -2,10 +2,10 @@
 Run the document ingestion agent against a sample document.
 
 Usage:
-    uv run python scripts/run_ingestion.py
-    uv run python scripts/run_ingestion.py high_risk
-    uv run python scripts/run_ingestion.py missing_fields
-    uv run python scripts/run_ingestion.py prompt_injection
+    uv run python tests/dev/run_ingestion.py
+    uv run python tests/dev/run_ingestion.py high_risk
+    uv run python tests/dev/run_ingestion.py missing_fields
+    uv run python tests/dev/run_ingestion.py prompt_injection
 """
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ SAMPLES = {
 
 async def main(sample_name: str = "harbour_fresh") -> None:
     # Import here so .env is loaded before anything else
-    from underwriting.pipeline_agents.document_ingestion_agent.agent import run
-    from underwriting.database.connection import AsyncSessionLocal
+    from pipeline_agents.document_ingestion_agent.agent import run
+    from database.connection import AsyncSessionLocal
 
     if sample_name not in SAMPLES:
         print(f"Unknown sample: {sample_name!r}")

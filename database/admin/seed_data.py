@@ -1,26 +1,53 @@
 """
-Seed script — loads customers, claims, embeddings, and regulatory rules.
+Consolidated seed script — creates brokers, customers, claims, embeddings, and regulatory rules.
 
-Run with:
-    uv run python db/seeds/seed_data.py
+Combines seed_brokers.py and original seed_data.py into a single file.
+Run: uv run python database/admin/seed_data.py
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import uuid
 from datetime import datetime, timezone
 
 from sentence_transformers import SentenceTransformer
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from underwriting.database.models import (
+from database.connection import AsyncSessionLocal
+from database.models import (
+    ApiKey,
+    Broker,
     Claim,
     ClaimsEmbedding,
     Customer,
     Regulation,
 )
 
-DATABASE_URL = "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting"
+# ── Test Brokers ──────────────────────────────────────────────────────────────
+
+TEST_BROKERS = [
+    {
+        "name": "Acme Insurance Brokers",
+        "email": "api@acmeinsurance.com",
+        "organization": "Acme Inc",
+        "api_key": "sk-broker-001-acme-test-key-2026",
+    },
+    {
+        "name": "XYZ Brokers Ltd",
+        "email": "contact@xyzbrokers.com",
+        "organization": "XYZ Corp",
+        "api_key": "sk-broker-002-xyz-test-key-2026",
+    },
+    {
+        "name": "QuickQuote Solutions",
+        "email": "api@quickquote.nz",
+        "organization": "QuickQuote NZ",
+        "api_key": "sk-broker-003-quickquote-test-key-2026",
+    },
+]
 
 # ── Customers ─────────────────────────────────────────────────────────────────
 # Pre-generate UUIDs so claims can reference them immediately
@@ -305,7 +332,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000001"),
         "claim_number": "CLM-NZ-2023-001",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000001"),  # James Tane
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000001"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -331,7 +358,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000002"),
         "claim_number": "CLM-NZ-2023-002",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000002"),  # Pacific Properties
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000002"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -357,7 +384,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000003"),
         "claim_number": "CLM-NZ-2022-001",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000003"),  # Sarah Whitmore
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000003"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -383,7 +410,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000004"),
         "claim_number": "CLM-NZ-2023-003",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000004"),  # Te Aro Holdings
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000004"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -409,7 +436,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000005"),
         "claim_number": "CLM-NZ-2023-004",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000005"),  # Michael Chen
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000005"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -435,7 +462,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000006"),
         "claim_number": "CLM-NZ-2022-002",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000006"),  # David Harrington
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000006"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -461,7 +488,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000007"),
         "claim_number": "CLM-NZ-2022-003",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000007"),  # Rachel Sutherland
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000007"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -488,7 +515,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000008"),
         "claim_number": "CLM-NZ-2021-001",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000008"),  # Bruce Ngata
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000008"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "NZ",
@@ -514,7 +541,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000009"),
         "claim_number": "CLM-AU-2023-001",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000009"),  # Harbour View Mgmt
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000009"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -540,7 +567,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000010"),
         "claim_number": "CLM-AU-2022-001",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000010"),  # Brisbane River Traders
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000010"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -566,7 +593,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000011"),
         "claim_number": "CLM-AU-2023-002",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000011"),  # Emma Kowalski
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000011"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -591,7 +618,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000012"),
         "claim_number": "CLM-AU-2022-002",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000012"),  # Craig Donaldson
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000012"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -617,7 +644,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000013"),
         "claim_number": "CLM-AU-2023-003",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000013"),  # Coastal Retail Group
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000013"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -642,7 +669,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000014"),
         "claim_number": "CLM-AU-2023-004",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000014"),  # Karen Mitchell
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000014"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -667,7 +694,7 @@ CLAIMS = [
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000015"),
         "claim_number": "CLM-AU-2022-003",
-        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000015"),  # Raymond Xu
+        "customer_id": uuid.UUID("00000000-0000-0000-0000-000000000015"),
         "policy_id": None,
         "class_of_business": "property",
         "jurisdiction": "AU",
@@ -842,19 +869,69 @@ REGULATIONS = [
 ]
 
 
-# ── Seed runner ────────────────────────────────────────────────────────────────
+async def hash_api_key(plain_key: str) -> str:
+    """Hash an API key using SHA256."""
+    return hashlib.sha256(plain_key.encode()).hexdigest()
 
-async def seed(session: AsyncSession) -> None:
-    from sqlalchemy import text
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-    print("Clearing existing data...")
+async def seed_brokers(session: AsyncSession) -> None:
+    """Create test brokers and API keys.
+
+    BROKERS TABLE: Inserts 3 demo broker accounts (Acme, XYZ, QuickQuote) with ACTIVE status.
+    API_KEYS TABLE: Creates SHA256-hashed API key for each broker for authentication.
+    """
+    print(f"\nSeeding {len(TEST_BROKERS)} brokers and API keys...")
+
+    for test_broker in TEST_BROKERS:
+        result = await session.execute(
+            select(Broker).where(Broker.email == test_broker["email"])
+        )
+        existing = result.scalars().first()
+
+        if existing:
+            print(f"  [OK] Broker '{test_broker['name']}' already exists, skipping")
+            continue
+
+        broker = Broker(
+            id=uuid.uuid4(),
+            name=test_broker["name"],
+            email=test_broker["email"],
+            organization=test_broker["organization"],
+            status="ACTIVE",
+        )
+        session.add(broker)
+        await session.flush()
+
+        api_key_hash = await hash_api_key(test_broker["api_key"])
+        api_key = ApiKey(
+            id=uuid.uuid4(),
+            broker_id=broker.id,
+            api_key_hash=api_key_hash,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(api_key)
+        await session.commit()
+
+        print(f"  [CREATED] {test_broker['name']}")
+        print(f"    Email: {test_broker['email']}")
+        print(f"    API Key: {test_broker['api_key']}")
+
+
+async def seed_customers_and_claims(session: AsyncSession) -> None:
+    """Load customers, claims, embeddings, and regulations.
+
+    CUSTOMERS TABLE: Inserts 15 customer records (8 NZ, 7 AU) with verified KYC status.
+    CLAIMS TABLE: Inserts 15 historical claim records with cause of loss and settlement amounts.
+    CLAIMS_EMBEDDINGS TABLE: Generates 384-dim vector embeddings for semantic RAG search.
+    REGULATIONS TABLE: Inserts 8 compliance rules for NZ (RBNZ) and AU (APRA) regulators.
+    """
+    print(f"\nClearing existing data...")
     await session.execute(text("DELETE FROM claims_embeddings"))
     await session.execute(text("DELETE FROM claims"))
     await session.execute(text("DELETE FROM regulations"))
     await session.commit()
 
-    print(f"\nSeeding {len(CUSTOMERS)} customers (upsert — safe to re-run)...")
+    print(f"\nSeeding {len(CUSTOMERS)} customers...")
     for i, c in enumerate(CUSTOMERS, 1):
         stmt = pg_insert(Customer).values(**c).on_conflict_do_nothing(index_elements=["id"])
         await session.execute(stmt)
@@ -867,11 +944,10 @@ async def seed(session: AsyncSession) -> None:
         print(f"  [{i:02d}/{len(CLAIMS)}] {c['claim_number']} — {c['cause_of_loss']}")
     await session.flush()
     await session.commit()
-    print(f"  Claims committed.")
 
-    print("\nLoading sentence-transformers model (all-MiniLM-L6-v2)...")
+    print(f"\nLoading sentence-transformers model (all-MiniLM-L6-v2)...")
     model = SentenceTransformer("all-MiniLM-L6-v2")
-    print("Model loaded.")
+    print(f"Model loaded.")
 
     print(f"\nGenerating embeddings for {len(CLAIMS)} claims...")
     for i, c in enumerate(CLAIMS, 1):
@@ -895,7 +971,6 @@ async def seed(session: AsyncSession) -> None:
         ))
         print(f"  [{i:02d}/{len(CLAIMS)}] Embedded {c['claim_number']}")
     await session.commit()
-    print(f"  Embeddings committed.")
 
     print(f"\nSeeding {len(REGULATIONS)} regulatory rules...")
     for i, reg in enumerate(REGULATIONS, 1):
@@ -903,19 +978,35 @@ async def seed(session: AsyncSession) -> None:
         print(f"  [{i:02d}/{len(REGULATIONS)}] {reg['rule_code']} — {reg['regulator']}")
     await session.commit()
     print(f"  Regulations committed.")
-    print("\nSeed complete.")
-    print(f"  Customers : {len(CUSTOMERS)}")
-    print(f"  Claims    : {len(CLAIMS)}")
-    print(f"  Embeddings: {len(CLAIMS)}")
+
+    print(f"\nSeed complete.")
+    print(f"  Customers  : {len(CUSTOMERS)}")
+    print(f"  Claims     : {len(CLAIMS)}")
+    print(f"  Embeddings : {len(CLAIMS)}")
     print(f"  Regulations: {len(REGULATIONS)}")
 
 
 async def main() -> None:
-    engine = create_async_engine(DATABASE_URL, echo=False)
-    async_session = async_sessionmaker(engine, expire_on_commit=False)
-    async with async_session() as session:
-        await seed(session)
-    await engine.dispose()
+    """Entry point — seed brokers and business data."""
+    print("=" * 70)
+    print("CONSOLIDATED SEEDING: Brokers, Customers, Claims, Embeddings & Regulations")
+    print("=" * 70)
+
+    try:
+        async with AsyncSessionLocal() as session:
+            await seed_brokers(session)
+            await seed_customers_and_claims(session)
+
+        print()
+        print("[SUCCESS] All seeding complete!")
+        print()
+        print("Broker API Keys (save these for testing):")
+        for broker in TEST_BROKERS:
+            print(f"  {broker['api_key']}")
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        raise
 
 
 if __name__ == "__main__":
