@@ -30,23 +30,13 @@ st.markdown("""
 <style>
     #root > div:first-child .block-container { padding-top: 0.5rem; }
     h1 { text-align: center; margin-top: 0; }
-    #MainMenu { visibility: hidden; display: none; }
     footer { visibility: hidden; }
     header[data-testid="stHeader"] { background: transparent; }
-    [data-testid="stToolbar"] { display: none; }
+    #MainMenu { visibility: hidden; }
 </style>
 <h1 style="margin-top:0;">INSUREAI</h1>
 <p style="text-align:center; margin-top:-0.5rem;">Enterprise Multi-Agent AI Platform</p>
 <hr/>
-<script>
-window.addEventListener('keydown', function(e) {
-    if (!e.ctrlKey && !e.metaKey && !e.altKey &&
-        (e.key === 'c' || e.key === 'C' || e.key === 'r' || e.key === 'R')) {
-        var tag = document.activeElement ? document.activeElement.tagName : '';
-        if (tag !== 'INPUT' && tag !== 'TEXTAREA') { e.stopPropagation(); }
-    }
-}, true);
-</script>
 """, unsafe_allow_html=True)
 
 
