@@ -50,35 +50,6 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
-    # ── audit_trail ──────────────────────────────────────────────────────────
-    op.create_table(
-        "audit_trail",
-        sa.Column("id", sa.BigInteger, primary_key=True, autoincrement=True),
-        sa.Column("submission_id", postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("submissions.id"), nullable=False),
-        sa.Column("policy_id", sa.String(64)),
-        sa.Column("workflow_id", postgresql.UUID(as_uuid=True)),
-        sa.Column("agent_name", sa.String(64), nullable=False),
-        sa.Column("prompt_version", sa.String(16)),
-        sa.Column("event_type", sa.String(64), nullable=False),
-        sa.Column("input_payload", postgresql.JSONB),
-        sa.Column("raw_llm_response", sa.Text),
-        sa.Column("parsed_output", postgresql.JSONB),
-        sa.Column("decision_value", sa.String(32)),
-        sa.Column("decision_rationale", sa.Text),
-        sa.Column("confidence_score", sa.Numeric(4, 3)),
-        sa.Column("underwriter_id", sa.String(64)),
-        sa.Column("override_reason", sa.Text),
-        sa.Column("processing_time_ms", sa.Integer),
-        sa.Column("entry_hash", sa.String(64)),
-        sa.Column("previous_hash", sa.String(64)),
-        sa.Column("timestamp", sa.DateTime(timezone=True),
-                  server_default=sa.func.now(), nullable=False),
-    )
-    op.create_index("ix_audit_trail_submission_id", "audit_trail", ["submission_id"])
-    op.create_index("ix_audit_trail_policy_id", "audit_trail", ["policy_id"])
-    op.create_index("ix_audit_trail_timestamp", "audit_trail", ["timestamp"])
-
     # ── cost_ledger ──────────────────────────────────────────────────────────
     op.create_table(
         "cost_ledger",
@@ -187,7 +158,6 @@ def downgrade() -> None:
     op.drop_table("claims_embeddings")
     op.drop_table("regulations")
     op.drop_table("cost_ledger")
-    op.drop_table("audit_trail")
     op.drop_table("workflows")
     op.drop_table("submissions")
     op.execute("DROP EXTENSION IF EXISTS vector")
