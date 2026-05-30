@@ -70,7 +70,15 @@ class PipelineRequest(BaseModel):
 
 class QueueDecisionRequest(BaseModel):
     underwriter_id: str = Field(..., min_length=1)
-    action: Literal["ACCEPT", "DECLINE", "REFER"]
+    action: Literal[
+        "APPROVE",
+        "APPROVE_WITH_CONDITIONS",
+        "OVERRIDE",
+        "DECLINE",
+        "REQUEST_MORE_DOCUMENTS",
+        "REQUEST_MORE_CLAIMS_DATA",
+        "ESCALATE_TO_SENIOR",
+    ]
     override_risk_score: float | None = Field(None, ge=0.0, le=1.0)
     override_reason: str | None = None
     conditions: list[str] = []

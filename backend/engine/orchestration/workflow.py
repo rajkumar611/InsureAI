@@ -23,6 +23,7 @@ from pipeline_agents.pricing_agent.schemas import PricingOutput
 from pipeline_agents.underwriting_risk_agent import agent as risk_agent
 from pipeline_agents.underwriting_risk_agent.schemas import RiskAssessment
 from database.connection import AsyncSessionLocal
+from database.models import UnderwriterQueueItem
 from engine.governance_agent import agent as governance_agent
 from engine.governance_agent.schemas import GovernanceDecision
 
@@ -183,7 +184,7 @@ async def human_review_node(state: WorkflowState) -> dict:
     async with AsyncSessionLocal() as session:
 
         queue_item_fresh = await session.get(
-            __import__("underwriting.platform.database.models", fromlist=["UnderwriterQueueItem"]).UnderwriterQueueItem,
+            UnderwriterQueueItem,
             __import__("uuid").UUID(queue_id),
         )
         if queue_item_fresh:
