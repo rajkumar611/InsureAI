@@ -275,9 +275,8 @@ backend/
 database/
 ├── connection.py                      ← Async session + PostgreSQL pool
 ├── models.py                          ← SQLAlchemy ORM models
-├── init_schema.py                     ← Schema initialization utilities
 └── admin/
-    ├── init_db.py                     ← Initialize database (tables + indexes)
+    ├── db_creation.py                 ← Create database + tables + indexes (DROP & recreate)
     ├── health_check_db.py             ← Database health check
     ├── seed_data.py                   ← Load 15 customers + 120 claims
     ├── seed_brokers.py                ← Create test broker accounts + API keys

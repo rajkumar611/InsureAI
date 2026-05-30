@@ -10,7 +10,7 @@ class DatabaseSettings(BaseSettings):
 
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting"
+        "postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting"
     )
 
 _settings = DatabaseSettings()
