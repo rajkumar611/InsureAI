@@ -18,6 +18,7 @@ from api.routers import submissions, health, pipeline
 from api.middleware import authenticate_api_key
 from api.middleware.logging import log_requests
 from api.middleware.rate_limiter import check_rate_limit
+from pipeline_agents.claims_history_agent.agent import cleanup_encoder
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
     await check_and_init_schema()
     await init_workflow(_db_settings.DATABASE_URL)
     yield
+    await cleanup_encoder()
     await close_workflow()
     await engine.dispose()
 

@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from functools import lru_cache
+from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy import select, text
@@ -100,13 +100,24 @@ def _deterministic_profile_confidence(retrieval_source: str, record_count: int) 
 
 # ── Embedding model (loaded once per process) ─────────────────────────────────
 
-@lru_cache(maxsize=1)
+_encoder_instance = None
+
+
 def _get_encoder():
-    from sentence_transformers import SentenceTransformer
-    logger.info("claims_history_agent: loading sentence-transformers model")
-    return SentenceTransformer("all-MiniLM-L6-v2")
+    """Load embedding model once per process; cached in module-level variable."""
+    global _encoder_instance
+    if _encoder_instance is None:
+        from sentence_transformers import SentenceTransformer
+        logger.info("claims_history_agent: loading sentence-transformers model")
+        _encoder_instance = SentenceTransformer("all-MiniLM-L6-v2")
+    return _encoder_instance
 
 
+async def cleanup_encoder() -> None:
+    """Cleanup embedding model on app shutdown to free ~384MB memory."""
+    global _encoder_instance
+    if _encoder_instance:
+        _encoder_instance = None
 
 
 def _embed(text_: str) -> list[float]:
@@ -199,7 +210,8 @@ async def _fetch_similar_claims(
     return [dict(r) for r in rows]
 
 
-def _row_to_dict(row: ClaimsEmbedding) -> dict:
+def _row_to_dict(row: ClaimsEmbedding) -> dict[str, Any]:
+    """Convert ClaimsEmbedding ORM row to dict for JSON serialization."""
     return {
         "claim_id": str(row.claim_id) if row.claim_id else None,
         "customer_ref": row.customer_ref,

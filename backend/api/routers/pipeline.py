@@ -258,10 +258,10 @@ async def list_queue(
     offset = (page - 1) * _QUEUE_PAGE_SIZE
 
     total_result = await session.execute(
-        select(UnderwriterQueueItem.id)
+        select(func.count(UnderwriterQueueItem.id))
         .where(UnderwriterQueueItem.status == "PENDING")
     )
-    total = len(total_result.all())
+    total = total_result.scalar() or 0
 
     rows = await session.execute(
         select(UnderwriterQueueItem, Submission)
@@ -307,7 +307,14 @@ async def get_queue_item(
     queue_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    item = await session.get(UnderwriterQueueItem, uuid.UUID(queue_id))
+    try:
+        queue_uuid = uuid.UUID(queue_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid queue_id — must be a valid UUID",
+        )
+    item = await session.get(UnderwriterQueueItem, queue_uuid)
     if not item:
         raise HTTPException(status_code=404, detail="Queue item not found")
 
@@ -340,7 +347,14 @@ async def submit_decision(
     body: QueueDecisionRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    item = await session.get(UnderwriterQueueItem, uuid.UUID(queue_id))
+    try:
+        queue_uuid = uuid.UUID(queue_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid queue_id — must be a valid UUID",
+        )
+    item = await session.get(UnderwriterQueueItem, queue_uuid)
     if not item:
         raise HTTPException(status_code=404, detail="Queue item not found")
     if item.status != "PENDING":

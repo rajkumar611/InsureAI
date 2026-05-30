@@ -5,14 +5,18 @@ All /api/v1/* endpoints require X-API-Key header.
 API keys are hashed with SHA256 before comparison.
 """
 import hashlib
+import logging
 from datetime import datetime
 
 from fastapi import Request, Response
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.connection import AsyncSessionLocal
 from database.models import Broker, ApiKey
+
+logger = logging.getLogger(__name__)
 
 
 async def hash_api_key(plain_key: str) -> str:
@@ -93,9 +97,8 @@ async def authenticate_api_key(request: Request, call_next) -> Response:
                 if api_key_obj_to_update:
                     api_key_obj_to_update.last_used_at = datetime.now()
                     await session.commit()
-        except Exception:
-            # Log update failure but don't block request
-            pass
+        except (SQLAlchemyError, Exception) as exc:
+            logger.warning("Failed to update API key last_used_at: %s", exc)
 
         # Allow request to continue
         response = await call_next(request)
@@ -107,8 +110,14 @@ async def authenticate_api_key(request: Request, call_next) -> Response:
         return response
 
     except Exception as exc:
+        logger.error(
+            "Authentication error for request %s: %s",
+            request.url.path,
+            exc,
+            exc_info=True,
+        )
         return Response(
-            content=f'{{"detail":"Authentication error: {str(exc)}"}}',
+            content='{"detail":"Authentication error"}',
             status_code=500,
             media_type="application/json",
         )
