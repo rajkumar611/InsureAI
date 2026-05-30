@@ -287,6 +287,8 @@ def page_how_it_works():
         st.markdown("**Insured:** Central Plains Logistics Ltd — 3 claims in last 3 years. Referred due to elevated claim frequency. Remedial works completed.")
     with st.expander("referral_hazard_zone.txt — Hazard zone Refer", expanded=False):
         st.markdown("**Insured:** Wellington coastal property — HIGH seismic zone + coastal exposure pushes confidence below auto-approve threshold.")
+    with st.expander("referral_sum_insured.txt — High sum insured Refer", expanded=False):
+        st.markdown("**Insured:** Harbour Tower Commercial Properties Ltd — Sum insured NZD 52M exceeds auto-approve threshold. Referred for senior underwriter review despite excellent risk profile.")
     with st.expander("clean_auto_approve.txt — Auto approve case", expanded=False):
         st.markdown("**Insured:** Clean risk with no claims, low hazard, complete fields. AI accepts with high confidence and auto-approves without human review.")
     with st.expander("decline_missing_fields.txt — Missing fields Decline", expanded=False):
