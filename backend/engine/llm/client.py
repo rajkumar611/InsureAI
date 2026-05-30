@@ -4,16 +4,15 @@ import os
 
 import anthropic
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 
 class LLMSettings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", extra="ignore")
+
     ANTHROPIC_API_KEY: str
     ANTHROPIC_REQUESTS_PER_MINUTE: int = 50
     ANTHROPIC_TOKENS_PER_MINUTE: int = 200000
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
 
 _settings = LLMSettings()

@@ -161,3 +161,12 @@ class Claim(Base):
     settled_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+class ClaimsEmbedding(Base):
+    """Vector embeddings for historical claims (RAG)."""
+    __tablename__ = "claims_embeddings"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    claim_id = Column(PGUUID(as_uuid=True), ForeignKey("claims.id"), nullable=False)
+    claim_summary_chunk = Column(String, nullable=False)
+    embedding = Column(JSONB, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

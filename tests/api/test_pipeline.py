@@ -15,7 +15,7 @@ from httpx import AsyncClient
 from pipeline_agents.document_ingestion_agent.schemas import SubmissionData
 
 _PIPELINE_URL = "/api/v1/submissions/pipeline"
-_INGEST_PATH = "underwriting.api.routers.pipeline.ingest"
+_INGEST_PATH = "api.routers.pipeline.ingest"
 
 _BASE_BODY = {
     "class_of_business": "property",
@@ -199,7 +199,7 @@ async def test_clean_submission_is_not_declined_by_gate(client: AsyncClient):
     }
     with (
         patch(_INGEST_PATH, new=AsyncMock(return_value=mock_ingestion)),
-        patch("underwriting.api.routers.pipeline.run_pipeline", new=AsyncMock(return_value=mock_pipeline_state)),
+        patch("api.routers.pipeline.run_pipeline", new=AsyncMock(return_value=mock_pipeline_state)),
     ):
         resp = await client.post(_PIPELINE_URL, json=_BASE_BODY)
 

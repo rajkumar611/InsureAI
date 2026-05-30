@@ -3,17 +3,16 @@ from __future__ import annotations
 from decimal import Decimal
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 
 class CostSettings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", extra="ignore")
+
     CLAUDE_HAIKU_INPUT_COST_PER_1M: Decimal = Decimal("0.80")
     CLAUDE_HAIKU_OUTPUT_COST_PER_1M: Decimal = Decimal("4.00")
     CLAUDE_SONNET_INPUT_COST_PER_1M: Decimal = Decimal("3.00")
     CLAUDE_SONNET_OUTPUT_COST_PER_1M: Decimal = Decimal("15.00")
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
 
 _settings = CostSettings()

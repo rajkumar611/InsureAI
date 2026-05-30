@@ -38,7 +38,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["backend/src/underwriting"]
+packages = ["backend", "database"]
 
 [tool.ruff]
 line-length = 100

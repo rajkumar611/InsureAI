@@ -1,17 +1,17 @@
 """Database connection and session management."""
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 import os
 
 class DatabaseSettings(BaseSettings):
     """Database configuration from environment."""
+    model_config = ConfigDict(extra="ignore")
+
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting"
     )
-
-    class Config:
-        env_file = ".env"
 
 _settings = DatabaseSettings()
 
