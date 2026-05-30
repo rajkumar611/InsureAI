@@ -3,6 +3,8 @@
 Simulated OCR output from broker-submitted PDFs.
 Used for local development and testing — no Azure Document Intelligence key required.
 
+> **Note:** All sample documents in this folder are for **Commercial Property** class of business. Test with `class_of_business="property"` in submissions.
+
 | File | Scenario | Expected Workflow Status |
 |---|---|---|
 | `clean_auto_approve.txt` | Clean, complete submission | ACCEPTED (auto-approve) |
