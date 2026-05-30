@@ -31,7 +31,7 @@ services:
         condition: service_healthy
     volumes:
       - ..:/app
-    command: uv run python backend/run.py
+    command: python backend/run.py
 
   dashboard:
     build:
@@ -45,7 +45,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: uv run streamlit run frontend/underwriter_portal.py --server.port 8501
+    command: streamlit run frontend/underwriter_portal.py --server.port 8501
 
 volumes:
   postgres_data:
