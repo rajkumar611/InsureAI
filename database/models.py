@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for database tables."""
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey, JSON, Index, Numeric, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
@@ -65,7 +65,7 @@ class CostEntry(Base):
 class UnderwriterQueueItem(Base):
     """Human underwriter queue for escalated cases."""
     __tablename__ = "underwriter_queue"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     workflow_id = Column(PGUUID(as_uuid=True), unique=True, nullable=False)
     submission_id = Column(PGUUID(as_uuid=True), ForeignKey("submissions.id"), nullable=False)
     policy_id = Column(String(64))

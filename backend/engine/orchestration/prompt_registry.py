@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-PROMPTS_ROOT = Path(__file__).resolve().parents[4] / "prompts"
+PROMPTS_ROOT = Path(__file__).resolve().parents[3] / "prompts"
 
 
 class PromptTemplate:
