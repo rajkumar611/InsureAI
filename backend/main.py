@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 import sys
 from pathlib import Path
 
@@ -34,9 +35,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS: restrict to frontend origin (env var or localhost for dev)
+frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[frontend_origin],
     allow_methods=["*"],
     allow_headers=["*"],
 )
