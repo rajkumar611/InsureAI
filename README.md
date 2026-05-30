@@ -232,13 +232,12 @@ INSUREAI/
 │   └── start_api.bat                                Batch launcher for API (Windows)
 │
 ├── system_prompts_config/
-│   └── agent_prompts/
-│       ├── document_ingestion_agent/v1.0.md
-│       ├── claims_history_agent/v1.0.md
-│       ├── hazard_evaluation_agent/v1.0.md
-│       ├── underwriting_risk_agent/v1.0.md
-│       ├── pricing_agent/v1.0.md
-│       └── governance_agent/v1.0.md
+│   ├── document_ingestion_agent/v1.0.md
+│   ├── claims_history_agent/v1.0.md
+│   ├── hazard_evaluation_agent/v1.0.md
+│   ├── underwriting_risk_agent/v1.0.md
+│   ├── pricing_agent/v1.0.md
+│   └── governance_agent/v1.0.md
 │
 ├── sample_broker_files/
 │   ├── documents/                                   7 test scenarios
@@ -541,7 +540,7 @@ Quick checklist:
 
 ### Update a Prompt
 
-1. Edit version file: `system_prompts_config/agent_prompts/agent_name/v1.1.md`
+1. Edit version file: `system_prompts_config/agent_name/v1.1.md`
 2. Update version in `prompt_registry.py`
 3. Reference via `registry.get("agent_name", version="1.1")`
 4. Log which version was used in cost_ledger (for debugging)
@@ -589,7 +588,6 @@ watch -n 2 'uv run pytest backend/tests -q'
 ## 📖 Further Reading
 
 - **CLAUDE.md** — Full project guide for Claude Code
-- **system_prompts_config/agent_prompts/README.md** — Prompt templates
 - **database/admin/** — Database admin utilities (seed_data, seed_brokers, health_check_db)
 - **deployment/** — Dockerfile, docker-compose.yml setup
 

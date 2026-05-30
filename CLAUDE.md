@@ -320,14 +320,12 @@ deployment/
 
 ```
 system_prompts_config/
-└── agent_prompts/
-    ├── document_ingestion_agent/v1.0.md
-    ├── claims_history_agent/v1.0.md
-    ├── hazard_evaluation_agent/v1.0.md
-    ├── underwriting_risk_agent/v1.0.md
-    ├── pricing_agent/v1.0.md
-    ├── governance_agent/v1.0.md
-    └── README.md                      ← How to version + update prompts
+├── document_ingestion_agent/v1.0.md
+├── claims_history_agent/v1.0.md
+├── hazard_evaluation_agent/v1.0.md
+├── underwriting_risk_agent/v1.0.md
+├── pricing_agent/v1.0.md
+└── governance_agent/v1.0.md
 ```
 
 ### sample_broker_files/ — Test Data
@@ -697,8 +695,8 @@ async def test_my_agent_happy_path():
 
 **Step 1: Create new version**
 ```bash
-cp system_prompts_config/agent_prompts/agent_name/v1.0.md \
-   system_prompts_config/agent_prompts/agent_name/v1.1.md
+cp system_prompts_config/agent_name/v1.0.md \
+   system_prompts_config/agent_name/v1.1.md
 # Edit v1.1.md
 ```
 
@@ -1079,7 +1077,6 @@ cd frontend && uv run streamlit run underwriter_portal.py  # Terminal 2
 ## 📚 Further Reading
 
 - **README.md** — User-facing guide (quickstart, endpoints, concepts)
-- **system_prompts_config/agent_prompts/README.md** — Prompt versioning
 - **backend/scripts/admin/README.md** — Admin utilities
 - **Anthropic Docs:** https://docs.anthropic.com/ (models, API, SDK)
 - **LangGraph Docs:** https://langchain-ai.github.io/langgraph/ (workflow, checkpointing)
