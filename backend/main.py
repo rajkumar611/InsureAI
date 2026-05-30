@@ -14,9 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database.connection import engine, _settings as _db_settings
 from engine.orchestration.workflow import init_workflow, close_workflow
 from api.routers import submissions, health, pipeline
-from api.middleware import authenticate_api_key
 from api.middleware.logging import log_requests
-from api.middleware.rate_limiter import check_rate_limit
 from pipeline_agents.claims_history_agent.agent import cleanup_encoder
 
 
@@ -43,8 +41,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.middleware("http")(check_rate_limit)
-app.middleware("http")(authenticate_api_key)
 app.middleware("http")(log_requests)
 
 app.include_router(health.router, tags=["health"])

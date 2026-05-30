@@ -1,7 +1,9 @@
 # INSUREAI — Claude Code Project Guide
 
-**Enterprise multi-agent AI insurance underwriting platform.**  
+**Enterprise multi-agent AI insurance underwriting platform with public API.**  
 Built by Raj Kumar (Lead Developer, QBE Insurance NZ) as a portfolio project targeting senior AI engineering roles in Singapore.
+
+> **API Access:** Direct underwriter submission via public REST API (no authentication). Perfect for SaaS integration and automated workflows.
 
 ---
 
@@ -43,7 +45,6 @@ uv run alembic upgrade head
 
 # 4. Seed sample data (optional)
 uv run python backend/scripts/admin/seed_data.py
-uv run python backend/scripts/admin/seed_brokers.py
 
 # 5. Terminal 1: Start API
 cd backend && uv run python run.py
@@ -72,10 +73,10 @@ uv run pytest backend/tests -v
 | **2 LLM Models** | ✅ DONE | Claude Haiku (ingest, claims, pricing) + Claude Sonnet (hazard, risk, governance) |
 | **LangGraph Workflow** | ✅ DONE | StateGraph + PostgreSQL checkpointer (interrupt/resume for HITL) |
 | **FastAPI Backend** | ✅ DONE | 10 endpoints (health, submissions, pipeline, queue, audit) |
-| **Broker Authentication** | ✅ DONE | SHA256 API key hashing, rate limiting (10/day), broker status validation |
+| **Public API** | ✅ DONE | Direct underwriter submission, no authentication required |
 | **Streamlit UIs** | ✅ DONE | Underwriter portal (submit, queue, lookup) + cost dashboard |
 | **Cost Tracking** | ✅ DONE | Real token counts logged, cost_ledger table, USD calculations |
-| **Database** | ✅ DONE | 8 migrations, customers, claims, brokers, queue, cost ledger, embeddings |
+| **Database** | ✅ DONE | 8 migrations, customers, claims, queue, cost ledger, embeddings |
 | **RAG + Embeddings** | ✅ DONE | pgvector HNSW index, 3-tier customer match, benchmark fallback |
 | **Audit Trail** | ✅ DONE | Via submission history + cost_ledger + LangGraph checkpoints |
 | **Tests** | ✅ DONE | API tests, pipeline tests, workflow routing tests, E2E tests |
@@ -88,8 +89,8 @@ uv run pytest backend/tests -v
 | **Underwriter Users (Azure AD)** | ⏸️ | NO User/Underwriter table yet; `assigned_underwriter_id` is just VARCHAR. Need: user table + Azure AD bearer token validation + RBAC |
 | **Prompt Injection Detector** | ⏸️ | Currently handled in LLM prompts; Python-level filter in `platform/security/sanitiser.py` not implemented |
 | **Redis Rate Limiter** | ⏸️ | Using in-memory store; Redis for distributed deployment |
-| **Webhook Notifications** | ⏸️ | POST to broker webhooks on submission completion |
-| **React Frontend** | ⏸️ | Next.js SPA for brokers; Streamlit sufficient for MVP |
+| **Webhook Notifications** | ⏸️ | POST webhooks on submission completion |
+| **React Frontend** | ⏸️ | Next.js SPA for underwriter portal; Streamlit sufficient for MVP |
 
 ---
 
@@ -148,10 +149,10 @@ POST /api/v1/submissions/pipeline
    - USD cost calculated + recorded immediately
    - Cost ledger queryable for audit + finance
 
-6. **Broker API Keys:** SHA256 hashing (not plaintext)
-   - Hash stored in DB; plaintext never logged
-   - Rate limit per broker (10/day default)
-   - Broker status validation (ACTIVE only)
+6. **Public API Design:** Stateless, scalable, no authentication
+   - Direct submission without authentication overhead
+   - Full transparency: cost, decisions, audit trail visible
+   - Rate limiting handled at infrastructure layer (nginx/API gateway)
 
 ---
 
@@ -197,8 +198,6 @@ backend/
 ├── src/underwriting/
 │   ├── api/
 │   │   ├── middleware/
-│   │   │   ├── auth.py               ← X-API-Key validation (SHA256)
-│   │   │   ├── rate_limiter.py       ← 10/day per broker
 │   │   │   └── logging.py            ← JSON request/response logging
 │   │   └── routers/
 │   │       ├── health.py             ← /health, /health/ready
@@ -206,13 +205,11 @@ backend/
 │   │       └── pipeline.py           ← /api/v1/submissions/pipeline, /queue/*
 │   │
 │   ├── database/
-│   │   ├── models.py                 ← ORM models (Submission, Broker, etc.)
+│   │   ├── models.py                 ← ORM models (Submission, Customer, etc.)
 │   │   │                                Key tables:
 │   │   │                                • submissions — master case record
 │   │   │                                • customers — ABN/NZBN indexed
 │   │   │                                • claims — historical claims
-│   │   │                                • brokers — API consumers
-│   │   │                                • api_keys — hashed keys
 │   │   │                                • underwriter_queue — HITL escalations
 │   │   │                                • cost_ledger — token costs
 │   │   └── connection.py             ← Async session + pool
@@ -279,7 +276,6 @@ database/
     ├── db_creation.py                 ← Create database + tables + indexes (DROP & recreate)
     ├── health_check_db.py             ← Database health check
     ├── seed_data.py                   ← Load 15 customers + 120 claims
-    ├── seed_brokers.py                ← Create test broker accounts + API keys
     └── schema_reference.sql           ← Raw SQL schema (reference)
 ```
 
@@ -304,8 +300,7 @@ tests/
 ├── integration/
 │   └── test_e2e_pipeline.py                  ← Full workflow E2E tests
 └── manual/
-    ├── run_ingestion.py                      ← Standalone ingestion agent test
-    └── test_broker_api.py                    ← Manual API auth + rate limiting tests
+    └── run_ingestion.py                      ← Standalone ingestion agent test
 ```
 
 ### deployment/ — Docker & Infrastructure
@@ -331,11 +326,11 @@ system_prompts_config/
 └── governance_agent/v1.0.md
 ```
 
-### sample_broker_files/ — Test Data
+### sample_broker_files/ — Test Data & Scenarios
 
 ```
 sample_broker_files/
-├── documents/                         ← 7 test scenarios
+├── documents/                         ← 7 test scenarios for E2E validation
 │   ├── clean_auto_approve.txt        ← Should → ACCEPT
 │   ├── decline_missing_fields.txt    ← Should → DECLINE
 │   ├── decline_prompt_injection.txt  ← Should → DECLINE
@@ -362,9 +357,9 @@ evals/
 
 ```bash
 # Example: Property insurance, NZ, auto-approve scenario
+# Public API — no authentication required
 
 curl -X POST http://localhost:8081/api/v1/submissions/pipeline \
-  -H "X-API-Key: broker-key-here" \
   -H "Content-Type: application/json" \
   -d '{
     "submission_ref": "POL-2025-001",
@@ -382,8 +377,7 @@ curl -X POST http://localhost:8081/api/v1/submissions/pipeline \
 }
 
 # Poll for completion:
-curl http://localhost:8081/api/v1/submissions/POL-2025-001 \
-  -H "X-API-Key: broker-key-here"
+curl http://localhost:8081/api/v1/submissions/POL-2025-001
 
 # Response when COMPLETED:
 {
@@ -403,9 +397,10 @@ curl http://localhost:8081/api/v1/submissions/POL-2025-001 \
 
 ```bash
 # Submit document that triggers REFER
+# Public API — no authentication required
 
 curl -X POST http://localhost:8081/api/v1/submissions/pipeline \
-  -H "X-API-Key: broker-key-here" \
+  -H "Content-Type: application/json" \
   -d '{"submission_ref": "POL-2025-002", ...}'
 
 # Response:
@@ -415,8 +410,7 @@ curl -X POST http://localhost:8081/api/v1/submissions/pipeline \
 }
 
 # Poll — when ready:
-curl http://localhost:8081/api/v1/submissions/uuid-2 \
-  -H "X-API-Key: broker-key-here"
+curl http://localhost:8081/api/v1/submissions/uuid-2
 
 # Response when AWAITING_HUMAN:
 {
@@ -426,8 +420,7 @@ curl http://localhost:8081/api/v1/submissions/uuid-2 \
 }
 
 # Underwriter checks queue:
-curl http://localhost:8081/api/v1/queue \
-  -H "X-API-Key: broker-key-here"
+curl http://localhost:8081/api/v1/queue
 
 # Response:
 {
@@ -444,7 +437,7 @@ curl http://localhost:8081/api/v1/queue \
 
 # Underwriter makes decision:
 curl -X POST http://localhost:8081/api/v1/queue/queue-uuid/decision \
-  -H "X-API-Key: broker-key-here" \
+  -H "Content-Type: application/json" \
   -d '{
     "underwriter_id": "UW-001",
     "action": "ACCEPT",
@@ -460,10 +453,9 @@ curl -X POST http://localhost:8081/api/v1/queue/queue-uuid/decision \
 
 ```bash
 # View dashboard at http://localhost:8501/cost_dashboard
-# Or query raw:
+# Or query raw (public access):
 
-curl http://localhost:8081/api/v1/submissions/uuid-2/cost \
-  -H "X-API-Key: broker-key-here"
+curl http://localhost:8081/api/v1/submissions/uuid-2/cost
 
 # Response:
 {
@@ -492,13 +484,12 @@ curl http://localhost:8081/api/v1/submissions/uuid-2/cost \
 
 ## 📊 Database Seeding Strategy
 
-### Architecture: Three Seeding Layers
+### Architecture: Two Seeding Layers
 
 ```
 database/admin/
 ├── init_db.py              ← [0] CREATE schema (tables + indexes)
 ├── seed_data.py            ← [1] LOAD business domain data
-├── seed_brokers.py         ← [2] CREATE external partner accounts
 └── health_check_db.py      ← Verify database health
 ```
 
@@ -512,7 +503,7 @@ database/admin/
 **What:** Populates CUSTOMERS, CLAIMS, REGULATIONS, EMBEDDINGS for testing
 **Who:** Insurance applicants (external), historical claim records
 **Records:** 15 customers, 120+ claims, 50+ regulations
-**Use Case:** When broker submits "Pacific Properties", RAG search finds their historical claims
+**Use Case:** When underwriter submits "Pacific Properties", RAG search finds their historical claims
 **Command:** `uv run python database/admin/seed_data.py`
 
 ```python
@@ -546,31 +537,6 @@ CLAIMS_EMBEDDINGS (384-dim vectors for pgvector search)
 └── Used by: claims_history_agent for RAG
 ```
 
-### Layer 3️⃣: `seed_brokers.py` — External Partner Accounts
-**What:** Creates BROKERS and API_KEYS for external API consumers
-**Who:** Insurance brokers (external partners submitting documents)
-**Records:** 3 demo brokers, 3 API keys
-**Use Case:** Broker calls `POST /api/v1/submissions/pipeline` with X-API-Key header
-**Command:** `uv run python database/admin/seed_brokers.py`
-
-```python
-# What gets created:
-BROKERS (3 records)
-├── name: "Acme Insurance Brokers"
-├── email: "api@acmeinsurance.com"
-├── organization: "Acme Inc"
-├── status: "ACTIVE"
-└── created_at: TIMESTAMP
-
-API_KEYS (1 per broker)
-├── broker_id: (FK to BROKERS)
-├── api_key_hash: SHA256("sk-broker-001-acme-test-key-2026")
-└── created_at: TIMESTAMP
-
-# API key is printed during seeding:
-API Key (SAVE THIS): sk-broker-001-acme-test-key-2026
-```
-
 ### Complete Setup Flow
 
 ```bash
@@ -580,16 +546,13 @@ uv run python database/admin/init_db.py
 # Step 2: Load test customer data + claims history
 uv run python database/admin/seed_data.py
 
-# Step 3: Create broker accounts + API keys
-uv run python database/admin/seed_brokers.py
-
-# Step 4: Verify database is healthy
+# Step 3: Verify database is healthy
 uv run python database/admin/health_check_db.py
 
-# Step 5: Start API and test
+# Step 4: Start API and test
 uv run python backend/run.py
 # In another terminal:
-uv run python tests/dev/test_broker_api.py
+uv run pytest backend/tests -v
 ```
 
 ### ⚠️ Important: Missing Underwriter Users
@@ -742,16 +705,13 @@ uv run pytest backend/tests --cov=backend/src --cov-report=html
 
 ```bash
 # 1. Check submission status
-curl http://localhost:8081/api/v1/submissions/POL-REF \
-  -H "X-API-Key: key"
+curl http://localhost:8081/api/v1/submissions/POL-REF
 
 # 2. Check progress
-curl http://localhost:8081/api/v1/submissions/{uuid}/progress \
-  -H "X-API-Key: key"
+curl http://localhost:8081/api/v1/submissions/{uuid}/progress
 
 # 3. Check cost ledger
-curl http://localhost:8081/api/v1/submissions/{uuid}/costs \
-  -H "X-API-Key: key"
+curl http://localhost:8081/api/v1/submissions/{uuid}/costs
 
 # 4. Query DB directly
 psql -h localhost -U qbe -d aus_underwriting
@@ -767,11 +727,6 @@ SELECT * FROM checkpoint_writes WHERE thread_id = '...';
 ## 🚢 Deployment
 
 ### Pre-Production Checklist
-
-- [ ] **API Key Management**
-  - [ ] Secrets manager configured (not in .env)
-  - [ ] Key rotation schedule defined
-  - [ ] Audit logging enabled
 
 - [ ] **Environment Variables**
   - [ ] `ANTHROPIC_API_KEY` set in secrets
@@ -789,14 +744,14 @@ SELECT * FROM checkpoint_writes WHERE thread_id = '...';
   - [ ] Error logging (Sentry or similar)
   - [ ] Cost dashboard persisted (Grafana)
   - [ ] Pipeline latency tracked
-  - [ ] Broker rate limit violations alerting
+  - [ ] Submission volume metrics tracked
 
 - [ ] **Security**
   - [ ] SSL/TLS on API endpoint
-  - [ ] API key rate limiting enforced
-  - [ ] Broker status validation (ACTIVE only)
+  - [ ] Rate limiting at infrastructure layer (nginx/API gateway)
   - [ ] Prompt injection detection confirmed
   - [ ] CORS configured for frontend origin
+  - [ ] Input validation on all endpoints
 
 - [ ] **Performance**
   - [ ] Load test: 100 concurrent submissions
@@ -958,7 +913,7 @@ from .agent import run
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID PK | Unique submission ID |
-| `submission_ref` | VARCHAR | Broker's policy number |
+| `submission_ref` | VARCHAR | External reference (policy/quote number) |
 | `status` | VARCHAR | RECEIVED → COMPLETED / DECLINED |
 | `workflow_status` | VARCHAR | ACCEPTED / DECLINED / AWAITING_HUMAN / REFERRED |
 | `extracted_data` | JSONB | Output from document ingestion agent |
@@ -1023,22 +978,6 @@ from .agent import run
 **Cause:** Running `uvicorn main:app` directly on Windows.
 **Fix:** Use `uv run python run.py` or `start_api.bat` instead.
 
-### Issue: "Broker account is inactive"
-**Cause:** Broker status in DB is not "ACTIVE".
-**Fix:** 
-```bash
-psql -h localhost -U qbe -d aus_underwriting
-UPDATE brokers SET status = 'ACTIVE' WHERE name = 'Demo Broker';
-```
-
-### Issue: Rate limit hit (429)
-**Cause:** Broker exceeded 10 requests/day.
-**Fix:** Wait until midnight UTC, or increase `DAILY_LIMIT` in `rate_limiter.py`.
-
-### Issue: "No such column: api_keys.api_key_hash"
-**Cause:** Missing migration for Phase 2 (broker auth).
-**Fix:** Run `uv run alembic upgrade head` to apply all migrations.
-
 ### Issue: API starts but Streamlit can't connect
 **Cause:** API not running or network error.
 **Fix:** 
@@ -1091,7 +1030,7 @@ cd frontend && uv run streamlit run underwriter_portal.py  # Terminal 2
 | Date | Status | Notes |
 |---|---|---|
 | 2025-05-30 | ✅ Production Ready | All agents + API + UI complete. Phase 2 (Auth + Rate Limiting) merged. |
-| 2025-05-15 | ✅ Phase 2 Complete | API key auth + broker DB + rate limiting. |
+| 2025-05-15 | ✅ Phase 2 Complete | Logging + validation (broker auth removed). |
 | 2025-05-01 | ✅ Phase 1 Complete | 6 agents + workflow + cost tracking. |
 | 2025-04-15 | 🚀 Initial Release | MVP with document ingestion + auto-approve. |
 

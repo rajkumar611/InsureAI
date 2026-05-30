@@ -14,7 +14,6 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 TEST_DATABASE_URL = "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting_test"
-TEST_API_KEY = "test-api-key-12345"
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -49,32 +48,6 @@ async def setup_test_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Create test broker and API key once
-    from database.models import Broker, ApiKey
-    from uuid import uuid4
-    import hashlib
-
-    SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-    async with SessionLocal() as session:
-        broker = Broker(
-            id=uuid4(),
-            name="test-broker",
-            email="test@broker.com",
-            organization="Test Org",
-            status="ACTIVE",
-        )
-        session.add(broker)
-        await session.flush()
-
-        key_hash = hashlib.sha256(TEST_API_KEY.encode()).hexdigest()
-        api_key = ApiKey(
-            id=uuid4(),
-            broker_id=broker.id,
-            api_key_hash=key_hash,
-        )
-        session.add(api_key)
-        await session.commit()
-
     yield engine
 
     # Cleanup: drop database after all tests
@@ -90,45 +63,35 @@ async def setup_test_db():
 
 
 @pytest_asyncio.fixture
-async def db_session_with_broker(setup_test_db):
-    """Session with test broker and API key (created at session scope)."""
+async def db_session(setup_test_db):
+    """Database session for tests."""
     SessionLocal = async_sessionmaker(
         bind=setup_test_db, class_=AsyncSession, expire_on_commit=False
     )
 
     session = SessionLocal()
     try:
-        yield session, TEST_API_KEY
+        yield session
     finally:
         await session.rollback()
         await session.close()
 
 
 @pytest_asyncio.fixture
-async def db_session(db_session_with_broker):
-    session, _ = db_session_with_broker
-    return session
-
-
-@pytest_asyncio.fixture
-async def client(db_session_with_broker):
+async def client(db_session):
     from httpx import ASGITransport, AsyncClient
     from main import app
     from database.connection import get_session
-
-    db_session, test_api_key = db_session_with_broker
 
     async def override_get_session():
         yield db_session
 
     app.dependency_overrides[get_session] = override_get_session
 
-    # Create client with test API key header
-    headers = {"X-API-Key": test_api_key}
+    # Create public API client (no authentication required)
     async with AsyncClient(
         transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers=headers
+        base_url="http://test"
     ) as ac:
         yield ac
     app.dependency_overrides.clear()
