@@ -2,10 +2,11 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg17
+    container_name: postgres_insureai
     environment:
       POSTGRES_DB: aus_underwriting
-      POSTGRES_USER: qbe
-      POSTGRES_PASSWORD: localdev
+      POSTGRES_USER: dbinsureai
+      POSTGRES_PASSWORD: 125QueenStreet
     ports:
       - "5432:5432"
     volumes:
@@ -24,7 +25,7 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://qbe:localdev@postgres:5432/aus_underwriting
+      DATABASE_URL: postgresql+asyncpg://dbinsureai:125QueenStreet@postgres:5432/aus_underwriting
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,7 +41,7 @@ services:
       - "8501:8501"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://qbe:localdev@postgres:5432/aus_underwriting
+      DATABASE_URL: postgresql+asyncpg://dbinsureai:125QueenStreet@postgres:5432/aus_underwriting
     depends_on:
       postgres:
         condition: service_healthy

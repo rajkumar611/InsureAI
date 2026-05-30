@@ -9,8 +9,8 @@ from datetime import datetime
 # Database connection parameters
 DEFAULT_DB = "postgres"
 TARGET_DB = "aus_underwriting"
-POSTGRES_USER = "qbe"
-POSTGRES_PASSWORD = "qbe_insure_2025"
+POSTGRES_USER = "dbinsureai"
+POSTGRES_PASSWORD = "125QueenStreet"  # Must match docker-compose.yml POSTGRES_PASSWORD
 POSTGRES_HOST = "localhost"
 POSTGRES_PORT = 5432
 
@@ -30,17 +30,28 @@ def connect_to_db(db_name: str = DEFAULT_DB) -> psycopg.Connection:
         sys.exit(1)
 
 def create_database():
-    """Create the aus_underwriting database."""
-    print("🔧 Creating database...")
+    """Drop and recreate the aus_underwriting database."""
+    print("🔧 Dropping existing database (if any)...")
     conn = connect_to_db(DEFAULT_DB)
     conn.autocommit = True
     cursor = conn.cursor()
 
     try:
+        # Terminate all connections to the database
+        cursor.execute(f"""
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE pg_stat_activity.datname = '{TARGET_DB}'
+            AND pid <> pg_backend_pid();
+        """)
+
+        # Drop the database
+        cursor.execute(f"DROP DATABASE IF EXISTS {TARGET_DB}")
+        print(f"✅ Dropped existing database (if any)")
+
+        # Create fresh database
         cursor.execute(f"CREATE DATABASE {TARGET_DB}")
-        print(f"✅ Database '{TARGET_DB}' created successfully")
-    except psycopg.errors.DuplicateDatabase:
-        print(f"⚠️  Database '{TARGET_DB}' already exists")
+        print(f"✅ Created fresh database '{TARGET_DB}'")
     except Exception as e:
         print(f"❌ Error creating database: {e}")
         sys.exit(1)
@@ -53,7 +64,7 @@ def create_extensions(cursor):
     print("📦 Creating extensions...")
     try:
         cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
-        cursor.execute("CREATE EXTENSION IF NOT EXISTS uuid-ossp")
+        # uuid-ossp not needed - gen_random_uuid() is built-in in PostgreSQL 13+
         print("✅ Extensions created")
     except Exception as e:
         print(f"❌ Error creating extensions: {e}")
