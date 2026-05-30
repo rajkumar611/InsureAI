@@ -13,7 +13,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-TEST_DATABASE_URL = "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting_test"
+TEST_DATABASE_URL = "postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting_test"
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -22,7 +22,7 @@ async def setup_test_db():
     from database.models import Base
 
     # Create admin connection to postgres database
-    postgres_url = "postgresql+asyncpg://qbe:localdev@localhost:5432/postgres"
+    postgres_url = "postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/postgres"
     admin_engine = create_async_engine(postgres_url, echo=False, isolation_level="AUTOCOMMIT")
 
     # Drop test database if it exists (clean slate)

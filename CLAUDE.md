@@ -565,7 +565,7 @@ uv run pytest backend/tests -v
 class Underwriter(Base):
     __tablename__ = "underwriters"
     id = Column(UUID, primary_key=True)
-    email = Column(String(128), unique=True)  # user@qbe.co.nz
+    email = Column(String(128), unique=True)  # user@gmail.com
     name = Column(String(128))
     azure_ad_oid = Column(String(255), unique=True)  # From Azure AD token
     role = Column(String(32))  # "SENIOR_UW", "JUNIOR_UW", "MANAGER"
@@ -714,7 +714,7 @@ curl http://localhost:8081/api/v1/submissions/{uuid}/progress
 curl http://localhost:8081/api/v1/submissions/{uuid}/costs
 
 # 4. Query DB directly
-psql -h localhost -U qbe -d aus_underwriting
+psql -h localhost -U dbinsureai -d aus_underwriting
 SELECT * FROM submissions WHERE submission_ref = 'POL-REF';
 SELECT * FROM cost_ledger WHERE submission_id = '...' ORDER BY timestamp DESC;
 
@@ -764,28 +764,28 @@ SELECT * FROM checkpoint_writes WHERE thread_id = '...';
 #### Option 1: Azure Container Instances (ACI)
 ```bash
 # Build container
-docker build -f deployment/Dockerfile -t qbe-underwriting:latest .
+docker build -f deployment/Dockerfile -t insureai-api:latest .
 
 # Push to Azure Container Registry
-az acr build --registry myregistry --image qbe-underwriting:latest .
+az acr build --registry myregistry --image insureai-api:latest .
 
 # Deploy with docker-compose
 az container create \
   --resource-group mygroup \
-  --name qbe-underwriting \
-  --image myregistry.azurecr.io/qbe-underwriting:latest \
+  --name insureai-api \
+  --image myregistry.azurecr.io/insureai-api:latest \
   --environment-variables ANTHROPIC_API_KEY=$KEY
 ```
 
 #### Option 2: Azure App Service
 ```bash
 # Create web app
-az webapp create -g mygroup -p myplan -n qbe-underwriting
+az webapp create -g mygroup -p myplan -n insureai-api
 
 # Deploy from local container
 az webapp config container set \
-  -n qbe-underwriting -g mygroup \
-  --docker-custom-image-name myregistry.azurecr.io/qbe-underwriting:latest
+  -n insureai-api -g mygroup \
+  --docker-custom-image-name myregistry.azurecr.io/insureai-api:latest
 ```
 
 #### Option 3: Kubernetes (AKS)
@@ -794,20 +794,20 @@ az webapp config container set \
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: qbe-underwriting
+  name: insureai-api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: qbe-underwriting
+      app: insureai-api
   template:
     metadata:
       labels:
-        app: qbe-underwriting
+        app: insureai-api
     spec:
       containers:
       - name: api
-        image: myregistry.azurecr.io/qbe-underwriting:latest
+        image: myregistry.azurecr.io/insureai-api:latest
         ports:
         - containerPort: 8081
         env:

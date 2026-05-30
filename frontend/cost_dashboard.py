@@ -6,8 +6,13 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend", "src"))
+
+# Load .env file
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 import pandas as pd
 import streamlit as st
@@ -15,7 +20,7 @@ from sqlalchemy import create_engine, text
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting",
+    "postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting",
 ).replace("+asyncpg", "+psycopg")  # streamlit uses sync psycopg3 driver
 
 

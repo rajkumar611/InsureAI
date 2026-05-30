@@ -10,7 +10,7 @@ Running the application locally requires **3 active ports**:
 
 | Service | Port | Protocol | URL | Status |
 |---------|------|----------|-----|--------|
-| **PostgreSQL** | 5432 | TCP | `postgresql://qbe:localdev@localhost:5432/aus_underwriting` | ✅ Required |
+| **PostgreSQL** | 5432 | TCP | `postgresql://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting` | ✅ Required |
 | **FastAPI Backend** | 8081 | HTTP | `http://localhost:8081` | ✅ Required |
 | **Streamlit Frontend** | 8501 | HTTP | `http://localhost:8501` | ✅ Required |
 
@@ -40,7 +40,7 @@ netstat -ano | findstr ":8501"   # Streamlit
 # Or test connectivity
 curl http://localhost:8081/health         # Should return JSON
 Invoke-WebRequest http://localhost:8501   # Should show Streamlit UI
-psql -h localhost -U qbe -d aus_underwriting -c "SELECT 1"  # Should return 1
+psql -h localhost -U dbinsureai -d aus_underwriting -c "SELECT 1"  # Should return 1
 ```
 
 ---
@@ -81,8 +81,8 @@ This difference is intentional:
 ```bash
 az container create \
   --resource-group mygroup \
-  --name qbe-underwriting \
-  --image myregistry.azurecr.io/qbe-underwriting:latest \
+  --name insureai-api \
+  --image myregistry.azurecr.io/insureai-api:latest \
   --ports 8000  # Single public port for API
 ```
 
@@ -96,7 +96,7 @@ az container create \
 ### Azure App Service
 ```bash
 az webapp config appsettings set \
-  --name qbe-underwriting \
+  --name insureai-api \
   --resource-group mygroup \
   --settings WEBSITES_PORT=8000
 ```
@@ -106,7 +106,7 @@ az webapp config appsettings set \
 apiVersion: v1
 kind: Service
 metadata:
-  name: qbe-api
+  name: insureai-api
 spec:
   type: LoadBalancer
   ports:
@@ -114,7 +114,7 @@ spec:
     targetPort: 8000   # Internal API port
     protocol: TCP
   selector:
-    app: qbe-underwriting
+    app: insureai-api
 ```
 
 **Port Mapping:**
@@ -257,7 +257,7 @@ port = 9000
 
 **.env file:**
 ```
-DATABASE_URL=postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting
+DATABASE_URL=postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting
 ```
 
 ---
@@ -357,7 +357,7 @@ netstat -ano | findstr ":5432"
 
 # Verify connection string in .env
 echo $env:DATABASE_URL
-# Should be: postgresql+asyncpg://qbe:localdev@localhost:5432/aus_underwriting
+# Should be: postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting
 
 # Start PostgreSQL if not running
 docker compose -f deployment/docker-compose.yml up postgres -d
