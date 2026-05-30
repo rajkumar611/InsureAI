@@ -295,4 +295,12 @@ async def get_audit_trail(submission_id: str) -> list[dict]:
         prev_hash = entry_hash
 
     entries.reverse()
+
+    # Rebuild hash chain after reversing (newest first)
+    for i in range(len(entries)):
+        if i == 0:
+            entries[i]["previous_hash"] = None
+        else:
+            entries[i]["previous_hash"] = entries[i - 1]["entry_hash"]
+
     return entries
