@@ -1,21 +1,28 @@
 from contextlib import asynccontextmanager
+import sys
+from pathlib import Path
+
+# Add parent (root) and current (backend) to sys.path
+backend_path = Path(__file__).parent
+root_path = backend_path.parent
+sys.path.insert(0, str(root_path))
+sys.path.insert(0, str(backend_path))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from underwriting.database.connection import engine, _settings as _db_settings
-from underwriting.database.models import Base
-from underwriting.platform.orchestration.workflow import init_workflow, close_workflow
-from underwriting.api.routers import submissions, health, pipeline
-from underwriting.api.middleware import authenticate_api_key
-from underwriting.api.middleware.logging import log_requests
-from underwriting.api.middleware.rate_limiter import check_rate_limit
+from database.connection import engine, _settings as _db_settings
+from engine.orchestration.workflow import init_workflow, close_workflow
+from database.init_schema import check_and_init_schema
+from api.routers import submissions, health, pipeline
+from api.middleware import authenticate_api_key
+from api.middleware.logging import log_requests
+from api.middleware.rate_limiter import check_rate_limit
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await check_and_init_schema()
     await init_workflow(_db_settings.DATABASE_URL)
     yield
     await close_workflow()

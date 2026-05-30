@@ -7,13 +7,11 @@ RUN pip install uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY backend/src/ ./backend/src/
-COPY backend/main.py ./backend/
-COPY backend/alembic/ ./backend/alembic/
-COPY backend/alembic.ini ./backend/
+COPY backend/ ./backend/
+COPY database/ ./database/
 
-ENV PYTHONPATH=/app/backend/src
+ENV PYTHONPATH=/app/backend:/app
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "python", "backend/run.py"]
