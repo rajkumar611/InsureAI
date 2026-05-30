@@ -288,21 +288,25 @@ database/
 
 ```
 tests/
-├── conftest.py                        ← Pytest fixtures + setup
+├── conftest.py                                ← Pytest fixtures + setup
 ├── api/
-│   ├── test_health.py                ← Health check tests
-│   ├── test_submissions.py           ← Submission CRUD tests
-│   ├── test_pipeline.py              ← Pipeline endpoint tests
-│   └── test_e2e_pipeline.py          ← Full workflow E2E
-├── pipeline/
-│   ├── test_pricing.py               ← Pricing agent logic
-│   └── test_schemas.py               ← Schema validation
+│   └── routers/
+│       ├── test_health.py                    ← Health check tests
+│       ├── test_submissions.py               ← Submission CRUD tests
+│       └── test_pipeline.py                  ← Pipeline endpoint tests
+├── pipeline_agents/
+│   ├── test_pricing.py                       ← Pricing agent logic
+│   └── test_schemas.py                       ← Schema validation (pipeline agents only)
 ├── platform/
-│   ├── test_workflow_routing.py      ← Workflow branch logic
-│   └── test_schemas.py               ← Platform schema tests
-└── dev/
-    ├── run_ingestion.py              ← Test ingestion agent standalone
-    └── test_broker_api.py            ← Test API auth + rate limiting
+│   ├── orchestration/
+│   │   └── test_workflow_routing.py          ← Workflow branch logic
+│   └── governance_agent/
+│       └── test_governance_schemas.py        ← Governance agent schema tests
+├── integration/
+│   └── test_e2e_pipeline.py                  ← Full workflow E2E tests
+└── manual/
+    ├── run_ingestion.py                      ← Standalone ingestion agent test
+    └── test_broker_api.py                    ← Manual API auth + rate limiting tests
 ```
 
 ### deployment/ — Docker & Infrastructure
