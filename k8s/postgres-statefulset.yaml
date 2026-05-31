@@ -4,12 +4,12 @@ metadata:
   name: postgres
   namespace: insureai
 spec:
-  ports:
-  - port: 5432
-    targetPort: 5432
   clusterIP: None
   selector:
     app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -32,38 +32,34 @@ spec:
         image: pgvector/pgvector:pg17
         ports:
         - containerPort: 5432
-          name: postgres
         env:
-        - name: POSTGRES_DB
-          value: aus_underwriting
         - name: POSTGRES_USER
-          value: dbinsureai
+          value: "dbinsureai"
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
               name: insureai-secrets
               key: POSTGRES_PASSWORD
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
+        - name: POSTGRES_DB
+          value: "aus_underwriting"
         livenessProbe:
           exec:
             command:
             - /bin/sh
             - -c
-            - pg_isready -U dbinsureai -d aus_underwriting
+            - pg_isready -U dbinsureai
           initialDelaySeconds: 30
           periodSeconds: 10
-          timeoutSeconds: 5
-        readinessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -c
-            - pg_isready -U dbinsureai -d aus_underwriting
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 1
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
   volumeClaimTemplates:
   - metadata:
       name: postgres-storage

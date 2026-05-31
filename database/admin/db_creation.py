@@ -11,7 +11,7 @@ DEFAULT_DB = "postgres"
 TARGET_DB = "aus_underwriting"
 POSTGRES_USER = "dbinsureai"
 POSTGRES_PASSWORD = "125QueenStreet"  # Must match docker-compose.yml POSTGRES_PASSWORD
-POSTGRES_HOST = "localhost"
+POSTGRES_HOST = "postgres.insureai.svc.cluster.local"
 POSTGRES_PORT = 5432
 
 def connect_to_db(db_name: str = DEFAULT_DB) -> psycopg.Connection:

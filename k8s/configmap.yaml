@@ -4,6 +4,5 @@ metadata:
   name: insureai-config
   namespace: insureai
 data:
-  FRONTEND_ORIGIN: "http://insureai-dashboard.insureai.svc.cluster.local"
+  FRONTEND_ORIGIN: "http://localhost:8501"
   LOG_LEVEL: "INFO"
-  PYTHONUNBUFFERED: "1"

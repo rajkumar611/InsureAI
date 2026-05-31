@@ -1,12 +1,13 @@
-name: Build and Deploy to AKS
+name: Build and Deploy to EKS
 
 on:
   push:
     branches: [main]
 
 env:
-  REGISTRY: insureairegistry.azurecr.io
-  IMAGE_NAME: insureai
+  AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: insureai
+  IMAGE_TAG: latest
 
 jobs:
   build-and-push:
@@ -19,24 +20,28 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to ACR
-      uses: azure/docker-login@v1
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        login-server: ${{ env.REGISTRY }}
-        username: ${{ secrets.REGISTRY_USERNAME }}
-        password: ${{ secrets.REGISTRY_PASSWORD }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Build and push Docker image
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push Docker image to ECR
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./deployment/Dockerfile
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:buildcache
+        cache-to: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:buildcache,mode=max
 
   deploy:
     needs: build-and-push
@@ -46,19 +51,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Set AKS context
-      uses: azure/aks-set-context@v3
-      with:
-        resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
-        cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+    - name: Update kubeconfig for EKS
+      run: |
+        aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr-deploy
+      uses: aws-actions/amazon-ecr-login@v1
 
     - name: Update image in K8s
       run: |
-        kubectl set image deployment/insureai-api insureai-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -n insureai
-        kubectl set image deployment/insureai-dashboard dashboard=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -n insureai
+        kubectl set image deployment/insureai-api insureai-api=${{ steps.login-ecr-deploy.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} -n insureai
+        kubectl set image deployment/insureai-dashboard dashboard=${{ steps.login-ecr-deploy.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} -n insureai
         kubectl rollout status deployment/insureai-api -n insureai --timeout=5m
