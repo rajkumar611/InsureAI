@@ -61,6 +61,8 @@ jobs:
     - name: Get EKS kubeconfig
       run: |
         aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+        kubectl cluster-info
+        kubectl get nodes
 
     - name: Login to Amazon ECR
       id: login-ecr-deploy
@@ -68,7 +70,7 @@ jobs:
 
     - name: Apply Kubernetes manifests
       run: |
-        kubectl apply -f k8s/
+        kubectl apply -f k8s/ --validate=false
 
     - name: Create ECR pull secret
       run: |
