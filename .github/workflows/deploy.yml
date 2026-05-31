@@ -66,10 +66,18 @@ jobs:
       id: login-ecr-deploy
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Update Kubernetes deployment with new image
+    - name: Create ECR pull secret
       run: |
-        kubectl set image deployment/insureai-api insureai-api=${{ steps.login-ecr-deploy.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} -n insureai --record
-        kubectl set image deployment/insureai-dashboard dashboard=${{ steps.login-ecr-deploy.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} -n insureai --record
+        kubectl create secret docker-registry ecr-secret \
+          --docker-server=${{ steps.login-ecr-deploy.outputs.registry }} \
+          --docker-username=AWS \
+          --docker-password=$(aws ecr get-login-password --region ${{ env.AWS_REGION }}) \
+          -n insureai \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Apply Kubernetes manifests
+      run: |
+        kubectl apply -f k8s/
 
     - name: Wait for rollout
       run: |

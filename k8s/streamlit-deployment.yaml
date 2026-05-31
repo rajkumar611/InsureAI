@@ -27,6 +27,8 @@ spec:
       labels:
         app: insureai-dashboard
     spec:
+      imagePullSecrets:
+      - name: ecr-secret
       containers:
       - name: dashboard
         image: 257212470251.dkr.ecr.ap-southeast-2.amazonaws.com/insureai:latest

@@ -27,6 +27,8 @@ spec:
       labels:
         app: insureai-api
     spec:
+      imagePullSecrets:
+      - name: ecr-secret
       initContainers:
       - name: migrate
         image: 257212470251.dkr.ecr.ap-southeast-2.amazonaws.com/insureai:latest
