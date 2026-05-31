@@ -29,19 +29,6 @@ spec:
     spec:
       imagePullSecrets:
       - name: ecr-secret
-      initContainers:
-      - name: migrate
-        image: 257212470251.dkr.ecr.ap-southeast-2.amazonaws.com/insureai:latest
-        command:
-        - sh
-        - -c
-        - "python -m alembic upgrade head"
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: insureai-secrets
-              key: DATABASE_URL
       containers:
       - name: insureai-api
         image: 257212470251.dkr.ecr.ap-southeast-2.amazonaws.com/insureai:latest
