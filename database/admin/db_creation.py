@@ -402,11 +402,6 @@ def main():
     print("\n" + "="*60)
     print("✨ Database initialization complete!")
     print("="*60)
-    print("\nNext steps:")
-    print("1. Verify database: docker exec -it postgres_insureai psql -U dbinsureai -l | findstr aus_underwriting")
-    print("2. Seed data: uv run python database/admin/seed_data.py")
-    print("3. Seed brokers: uv run python database/admin/seed_brokers.py")
-    print("4. Connect in DBeaver to localhost:5432/aus_underwriting\n")
 
 if __name__ == "__main__":
     main()
