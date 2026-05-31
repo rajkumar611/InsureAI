@@ -66,6 +66,10 @@ jobs:
       id: login-ecr-deploy
       uses: aws-actions/amazon-ecr-login@v1
 
+    - name: Apply Kubernetes manifests
+      run: |
+        kubectl apply -f k8s/
+
     - name: Create ECR pull secret
       run: |
         kubectl create secret docker-registry ecr-secret \
@@ -74,10 +78,6 @@ jobs:
           --docker-password=$(aws ecr get-login-password --region ${{ env.AWS_REGION }}) \
           -n insureai \
           --dry-run=client -o yaml | kubectl apply -f -
-
-    - name: Apply Kubernetes manifests
-      run: |
-        kubectl apply -f k8s/
 
     - name: Wait for rollout
       run: |
