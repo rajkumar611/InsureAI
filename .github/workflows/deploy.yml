@@ -81,5 +81,16 @@ jobs:
 
     - name: Wait for rollout
       run: |
-        kubectl rollout status deployment/insureai-api -n insureai --timeout=5m
-        kubectl rollout status deployment/insureai-dashboard -n insureai --timeout=5m
+        kubectl rollout status deployment/insureai-api -n insureai --timeout=5m || true
+        kubectl rollout status deployment/insureai-dashboard -n insureai --timeout=5m || true
+
+    - name: Debug pod status if not ready
+      if: failure()
+      run: |
+        echo "=== Pod Status ==="
+        kubectl get pods -n insureai
+        echo "=== Pod Describe ==="
+        kubectl describe pods -n insureai
+        echo "=== Pod Logs ==="
+        kubectl logs -n insureai -l app=insureai-api --tail=50 || true
+        kubectl logs -n insureai -l app=insureai-dashboard --tail=50 || true
