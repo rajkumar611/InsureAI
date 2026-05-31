@@ -8,12 +8,12 @@ class DatabaseSettings(BaseSettings):
     """Database configuration from environment."""
     model_config = ConfigDict(extra="ignore")
 
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql+asyncpg://dbinsureai:125QueenStreet@localhost:5432/aus_underwriting"
-    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
 _settings = DatabaseSettings()
+
+if not _settings.DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable must be set")
 
 def get_db_url() -> str:
     """Get database URL."""

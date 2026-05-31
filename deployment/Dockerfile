@@ -16,5 +16,5 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/backend:/app
 
-EXPOSE 8000
+EXPOSE 8081
 CMD ["python", "backend/run.py"]

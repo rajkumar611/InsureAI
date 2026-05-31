@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insureai-dashboard
+  namespace: insureai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: insureai-dashboard
+  template:
+    metadata:
+      labels:
+        app: insureai-dashboard
+    spec:
+      containers:
+      - name: dashboard
+        image: insureairegistry.azurecr.io/insureai:latest
+        imagePullPolicy: Always
+        command: ["streamlit", "run", "frontend/underwriter_portal.py", "--server.port", "8501"]
+        ports:
+        - containerPort: 8501
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: insureai-secrets
+              key: DATABASE_URL
+        envFrom:
+        - configMapRef:
+            name: insureai-config
+        livenessProbe:
+          tcpSocket:
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8501
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 200m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: insureai-dashboard
+  namespace: insureai
+spec:
+  selector:
+    app: insureai-dashboard
+  ports:
+  - port: 80
+    targetPort: 8501
+    protocol: TCP
+  type: LoadBalancer

@@ -1,5 +1,7 @@
 # Environment — never commit real secrets
 .env
+k8s/secret.yaml
+deployment/.env
 
 # Python
 __pycache__/
