@@ -11,6 +11,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY backend/ ./backend/
 COPY database/ ./database/
 COPY frontend/ ./frontend/
+COPY prompts/ ./prompts/
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
