@@ -11,7 +11,7 @@ Base = declarative_base()
 class Submission(Base):
     """Insurance submission record."""
     __tablename__ = "submissions"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
     submission_ref = Column(String(64), unique=True, nullable=False)
     broker_id = Column(String(64))
     customer_id = Column(PGUUID(as_uuid=True))
@@ -27,7 +27,7 @@ class Submission(Base):
 class Broker(Base):
     """Broker/partner account."""
     __tablename__ = "brokers"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
     name = Column(String(128), unique=True, nullable=False)
     email = Column(String(128), unique=True, nullable=False)
     organization = Column(String(128))
@@ -38,7 +38,7 @@ class Broker(Base):
 class ApiKey(Base):
     """API keys for broker authentication."""
     __tablename__ = "api_keys"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
     broker_id = Column(PGUUID(as_uuid=True), ForeignKey("brokers.id", ondelete="CASCADE"), nullable=False)
     api_key_hash = Column(String(255), unique=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
@@ -66,7 +66,7 @@ class CostEntry(Base):
 class UnderwriterQueueItem(Base):
     """Human underwriter queue for escalated cases."""
     __tablename__ = "underwriter_queue"
-    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4, server_default=text('gen_random_uuid()'))
     workflow_id = Column(PGUUID(as_uuid=True), unique=True, nullable=False)
     submission_id = Column(PGUUID(as_uuid=True), ForeignKey("submissions.id"), nullable=False)
     policy_id = Column(String(64))
@@ -99,7 +99,7 @@ class Regulation(Base):
 class Customer(Base):
     """Customer/policyholder entity."""
     __tablename__ = "customers"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
     customer_ref = Column(String(64), unique=True, nullable=False)
     entity_type = Column(String(16), nullable=False)
     full_name = Column(String(128), nullable=False)
@@ -121,7 +121,7 @@ class Customer(Base):
 class Policy(Base):
     """Insurance policy."""
     __tablename__ = "policies"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
     policy_number = Column(String(64), unique=True, nullable=False)
     customer_id = Column(PGUUID(as_uuid=True), ForeignKey("customers.id"), nullable=False)
     submission_id = Column(PGUUID(as_uuid=True), ForeignKey("submissions.id"))
@@ -141,7 +141,7 @@ class Policy(Base):
 class Claim(Base):
     """Historical insurance claim."""
     __tablename__ = "claims"
-    id = Column(PGUUID(as_uuid=True), primary_key=True)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
     claim_number = Column(String(64), unique=True, nullable=False)
     customer_id = Column(PGUUID(as_uuid=True), ForeignKey("customers.id"), nullable=False)
     policy_id = Column(PGUUID(as_uuid=True), ForeignKey("policies.id"))
