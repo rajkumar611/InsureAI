@@ -955,18 +955,7 @@ async def seed_customers_and_claims(session: AsyncSession) -> None:
         embedding = model.encode(c["claim_summary"]).tolist()
         session.add(ClaimsEmbedding(
             claim_id=c["id"],
-            customer_id=c["customer_id"],
-            customer_ref=customer["customer_ref"],
-            risk_address_region=c["risk_address_region"],
-            class_of_business=c["class_of_business"],
-            jurisdiction=c["jurisdiction"],
-            claim_date=c["claim_date"],
-            cause_of_loss=c["cause_of_loss"],
-            incurred_amount=c["incurred_amount"],
-            currency=c["currency"],
-            is_large_loss=c["is_large_loss"],
-            fraud_flag=c["fraud_flag"],
-            claim_summary=c["claim_summary"],
+            claim_summary_chunk=c["claim_summary"],
             embedding=embedding,
         ))
         print(f"  [{i:02d}/{len(CLAIMS)}] Embedded {c['claim_number']}")

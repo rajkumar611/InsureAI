@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey, JSON, Index, Numeric, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
+from pgvector.sqlalchemy import Vector
 
 Base = declarative_base()
 
@@ -168,5 +169,5 @@ class ClaimsEmbedding(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     claim_id = Column(PGUUID(as_uuid=True), ForeignKey("claims.id"), nullable=False)
     claim_summary_chunk = Column(String, nullable=False)
-    embedding = Column(JSONB, nullable=False)
+    embedding = Column(Vector(384), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
