@@ -184,7 +184,7 @@ Every LLM call logs to `cost_ledger`:
 - Claude Haiku: $0.80/1M input, $4.00/1M output
 - Claude Sonnet: $3.00/1M input, $15.00/1M output
 
-**View Dashboard:** http://localhost:8501 → LLM Cost Dashboard (embedded in portal)
+**Cost Dashboard:** Embedded in the underwriter portal (Streamlit sidebar)
 
 ---
 
