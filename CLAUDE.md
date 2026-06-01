@@ -34,7 +34,7 @@ echo $ANTHROPIC_API_KEY       # Must be set
 
 ```bash
 # 1. Clone + enter directory
-cd c:\Users\QBE\Downloads\GitHub Repos\INSUREAI
+cd INSUREAI
 
 # 2. Start PostgreSQL
 docker compose up postgres -d

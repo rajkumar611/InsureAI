@@ -446,5 +446,4 @@ Reproducibility = prompt version + input data + LLM output logged together. With
 
 ---
 
-**Last Updated:** 2026-06-01  
-**Document Owner:** Raj Kumar
+**Last Updated:** 2026-06-01
