@@ -42,23 +42,17 @@ uv run python database/admin/seed_data.py
 
 # 4. Terminal 1: Start API
 cd backend && uv run python run.py
-# API runs on http://localhost:8081
 
 # 5. Terminal 2: Start Dashboard
 cd frontend && uv run streamlit run underwriter_portal.py
-# Dashboard runs on http://localhost:8501
 
 # 6. Terminal 3: Run tests
 uv run pytest backend/tests -v
 ```
 
-### Live URLs
-| Service | URL |
-|---------|-----|
-| API Docs (Swagger) | http://localhost:8081/docs |
-| Health Check | http://localhost:8081/health |
-| Underwriter Portal | http://localhost:8501 |
-| Cost Dashboard | http://localhost:8501 (embedded) |
+Once running:
+- **API:** Available on `http://localhost:8081` (Swagger docs at `/docs`)
+- **Dashboard:** Available on `http://localhost:8501`
 
 ---
 
@@ -207,12 +201,6 @@ Every LLM call logs to `cost_ledger`:
 | `underwriter_queue` | Escalated submissions awaiting human decision |
 | `cost_ledger` | LLM token costs (one row per API call) |
 
-### Migrations
-
-8 migrations applied:
-- 0001–0003: Initial schema (submissions, customers, claims, pgvector)
-- 0004–0005: Enhanced extracted data, checkpoint persistence
-- 0006–0008: Cost ledger, rate limiting, checkpoint optimization
 
 ---
 

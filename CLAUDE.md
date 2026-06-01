@@ -429,8 +429,6 @@ frontend/
 backend/
 ├── main.py                            ← FastAPI app
 ├── run.py                             ← Windows launcher (event loop fix)
-├── alembic.ini                        ← Migration config
-├── alembic/versions/                  ← 8 migrations (0001-0008)
 │
 ├── src/underwriting/
 │   ├── api/
