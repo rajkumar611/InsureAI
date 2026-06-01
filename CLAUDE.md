@@ -430,75 +430,57 @@ backend/
 ├── main.py                            ← FastAPI app
 ├── run.py                             ← Windows launcher (event loop fix)
 │
-├── src/underwriting/
-│   ├── api/
-│   │   ├── middleware/
-│   │   │   └── logging.py            ← JSON request/response logging
-│   │   └── routers/
-│   │       ├── health.py             ← /health, /health/ready
-│   │       ├── submissions.py        ← /api/v1/submissions/* (CRUD)
-│   │       └── pipeline.py           ← /api/v1/submissions/pipeline, /queue/*
+├── api/
+│   ├── middleware/
+│   │   └── logging.py                ← JSON request/response logging
+│   └── routers/
+│       ├── health.py                 ← /health, /health/ready
+│       ├── submissions.py            ← /api/v1/submissions/* (CRUD)
+│       └── pipeline.py               ← /api/v1/submissions/pipeline, /queue/*
+│
+├── pipeline_agents/
+│   ├── document_ingestion_agent/      ← [1] Extract + validate
+│   │   ├── agent.py                  ← Main logic
+│   │   └── schemas.py                ← SubmissionData (24 fields)
 │   │
-│   ├── database/
-│   │   ├── models.py                 ← ORM models (Submission, Customer, etc.)
-│   │   │                                Key tables:
-│   │   │                                • submissions — master case record
-│   │   │                                • customers — ABN/NZBN indexed
-│   │   │                                • claims — historical claims
-│   │   │                                • underwriter_queue — HITL escalations
-│   │   │                                • cost_ledger — token costs
-│   │   └── connection.py             ← Async session + pool
+│   ├── claims_history_agent/         ← [2a] RAG search
+│   │   ├── agent.py                  ← 3-tier customer match
+│   │   └── schemas.py                ← ClaimsProfile, ClaimsStats
 │   │
-│   ├── pipeline_agents/
-│   │   ├── document_ingestion_agent/  ← [1] Extract + validate
-│   │   │   ├── agent.py              ← Main logic
-│   │   │   └── schemas.py            ← SubmissionData (24 fields)
-│   │   │
-│   │   ├── claims_history_agent/     ← [2a] RAG search
-│   │   │   ├── agent.py              ← 3-tier customer match
-│   │   │   └── schemas.py            ← ClaimsProfile, ClaimsStats
-│   │   │
-│   │   ├── hazard_evaluation_agent/  ← [2b] Geo-spatial risk
-│   │   │   ├── agent.py              ← NZ/AU keyword lookup
-│   │   │   └── schemas.py            ← HazardScore (level, confidence)
-│   │   │
-│   │   ├── underwriting_risk_agent/  ← [3] Pre-screen + synthesis
-│   │   │   ├── agent.py              ← Deterministic rules + Sonnet
-│   │   │   └── schemas.py            ← RiskDecision (action, confidence)
-│   │   │
-│   │   ├── human_in_the_loop/        ← [4] Queue + interrupt/resume
-│   │   │   ├── agent.py              ← Enqueue + workflow pause
-│   │   │   └── schemas.py            ← UnderwriterQueue, Decision
-│   │   │
-│   │   └── pricing_agent/            ← [5] Market rates
-│   │       ├── agent.py              ← Apply loadings/discounts
-│   │       └── schemas.py            ← PricingQuote
+│   ├── hazard_evaluation_agent/      ← [2b] Geo-spatial risk
+│   │   ├── agent.py                  ← NZ/AU keyword lookup
+│   │   └── schemas.py                ← HazardScore (level, confidence)
 │   │
-│   └── platform/
-│       ├── llm/
-│       │   ├── client.py             ← Shared Anthropic client
-│       │   │                            • Model routing (env var overrides)
-│       │   │                            • Token counting
-│       │   └── parsing.py            ← JSON extraction utilities
-│       │
-│       ├── orchestration/
-│       │   ├── workflow.py           ← LangGraph StateGraph
-│       │   │                            • Node definitions
-│       │   │                            • Edge routing logic
-│       │   │                            • PostgreSQL checkpointer
-│       │   └── prompt_registry.py    ← Versioned prompts
-│       │                                • {{VAR}} templating
-│       │                                • Version lookup
-│       │
-│       ├── governance_agent/         ← [6] Final validation
-│       │   ├── agent.py              ← Compliance + signing
-│       │   └── schemas.py
-│       │
-│       ├── cost_tracking/
-│       │   ├── middleware.py         ← Record costs after each LLM call
-│       │   └── pricing.py            ← Calculate USD from tokens
-│       │
-│       └── progress_tracker.py       ← Real-time pipeline progress (no Redis)
+│   ├── underwriting_risk_agent/      ← [3] Pre-screen + synthesis
+│   │   ├── agent.py                  ← Deterministic rules + Sonnet
+│   │   └── schemas.py                ← RiskDecision (action, confidence)
+│   │
+│   ├── human_in_the_loop/            ← [4] Queue + interrupt/resume
+│   │   ├── agent.py                  ← Enqueue + workflow pause
+│   │   └── schemas.py                ← UnderwriterQueue, Decision
+│   │
+│   └── pricing_agent/                ← [5] Market rates
+│       ├── agent.py                  ← Apply loadings/discounts
+│       └── schemas.py                ← PricingQuote
+│
+└── engine/
+    ├── llm/
+    │   ├── client.py                 ← Shared Anthropic client (model routing)
+    │   └── parsing.py                ← JSON extraction utilities
+    │
+    ├── orchestration/
+    │   ├── workflow.py               ← LangGraph StateGraph + checkpointer
+    │   └── prompt_registry.py        ← Versioned prompts with templating
+    │
+    ├── governance_agent/             ← [6] Final validation + compliance
+    │   ├── agent.py
+    │   └── schemas.py
+    │
+    ├── cost_tracking/
+    │   ├── middleware.py             ← Record costs after each LLM call
+    │   └── pricing.py                ← Calculate USD from token counts
+    │
+    └── progress_tracker.py           ← Real-time pipeline progress tracking
 ```
 
 ### database/ — ORM Models & Setup Scripts
@@ -514,28 +496,19 @@ database/
     └── schema_reference.sql           ← Raw SQL schema (reference)
 ```
 
-### tests/ — Automated & Manual Tests
+### tests/ — Automated Tests
 
 ```
 tests/
-├── conftest.py                                ← Pytest fixtures + setup
+├── conftest.py                        ← Pytest fixtures + setup
 ├── api/
+│   ├── middleware/
+│   │   └── (middleware tests)
 │   └── routers/
-│       ├── test_health.py                    ← Health check tests
-│       ├── test_submissions.py               ← Submission CRUD tests
-│       └── test_pipeline.py                  ← Pipeline endpoint tests
-├── pipeline_agents/
-│   ├── test_pricing.py                       ← Pricing agent logic
-│   └── test_schemas.py                       ← Schema validation (pipeline agents only)
-├── platform/
-│   ├── orchestration/
-│   │   └── test_workflow_routing.py          ← Workflow branch logic
-│   └── governance_agent/
-│       └── test_governance_schemas.py        ← Governance agent schema tests
-├── integration/
-│   └── test_e2e_pipeline.py                  ← Full workflow E2E tests
-└── manual/
-    └── run_ingestion.py                      ← Standalone ingestion agent test
+│       ├── test_health.py            ← Health check tests
+│       ├── test_submissions.py       ← Submission CRUD tests
+│       └── test_pipeline.py          ← Pipeline endpoint tests
+└── (additional integration/unit tests)
 ```
 
 ### deployment/ — Docker & Infrastructure
@@ -549,10 +522,10 @@ deployment/
     └── start_streamlit.bat            ← Windows Streamlit launcher
 ```
 
-### system_prompts_config/ — Agent Prompts
+### prompts/ — Agent System Prompts
 
 ```
-system_prompts_config/
+prompts/
 ├── document_ingestion_agent/v1.0.md
 ├── claims_history_agent/v1.0.md
 ├── hazard_evaluation_agent/v1.0.md
