@@ -39,12 +39,11 @@ cd c:\Users\QBE\Downloads\GitHub Repos\INSUREAI
 # 2. Start PostgreSQL
 docker compose up postgres -d
 
-# 3. Install + migrate
+# 3. Install dependencies
 uv sync
-uv run alembic upgrade head
 
 # 4. Seed sample data (optional)
-uv run python backend/scripts/admin/seed_data.py
+uv run python database/admin/seed_data.py
 
 # 5. Terminal 1: Start API
 cd backend && uv run python run.py
@@ -82,15 +81,14 @@ uv run pytest backend/tests -v
 | **Tests** | ✅ DONE | API tests, pipeline tests, workflow routing tests, E2E tests |
 | **Docker Deployment** | ✅ DONE | Dockerfile, docker-compose.yml, start scripts (Windows + POSIX) |
 
-### 🔄 Optional (Nice-to-Have)
+### 🔄 Future (Phase X+)
 
-| Feature | Status | Notes |
+| Feature | Status | Purpose |
 |---|---|---|
-| **Underwriter Users (Azure AD)** | ⏸️ | NO User/Underwriter table yet; `assigned_underwriter_id` is just VARCHAR. Need: user table + Azure AD bearer token validation + RBAC |
-| **Prompt Injection Detector** | ⏸️ | Currently handled in LLM prompts; Python-level filter in `platform/security/sanitiser.py` not implemented |
-| **Redis Rate Limiter** | ⏸️ | Using in-memory store; Redis for distributed deployment |
-| **Webhook Notifications** | ⏸️ | POST webhooks on submission completion |
-| **React Frontend** | ⏸️ | Next.js SPA for underwriter portal; Streamlit sufficient for MVP |
+| **Underwriter Authentication** | ⏸️ | Azure AD SSO + role-based access control |
+| **Redis Rate Limiter** | ⏸️ | For distributed deployment (multi-instance) |
+| **Webhook Notifications** | ⏸️ | Real-time submission status callbacks |
+| **React Frontend** | ⏸️ | Production SPA (currently using Streamlit) |
 
 ---
 
@@ -167,7 +165,6 @@ INSUREAI/
 ├── pyproject.toml                     ← Dependencies + pytest config
 ├── .env / .env.example                ← Environment variables
 ├── .pre-commit-config.yaml            ← Linting hooks (ruff, mypy)
-├── pyproject.toml                     ← Build config
 └── uv.lock                            ← Locked dependency versions
 ```
 
@@ -181,7 +178,6 @@ frontend/
 │                                         • View Queue (HITL escalations)
 │                                         • Submission Lookup
 │                                         • LLM Cost Dashboard
-├── cost_dashboard.py                  ← Cost analytics (embedded in portal)
 ├── start_streamlit.bat                ← Batch launcher (Windows)
 └── tests/                             ← UI integration tests (if any)
 ```
@@ -555,35 +551,17 @@ uv run python backend/run.py
 uv run pytest backend/tests -v
 ```
 
-### ⚠️ Important: Missing Underwriter Users
+### ⚠️ Future: Underwriter User Management (Phase X)
 
-**Current Status:** NO User/Underwriter table yet!
+**Current Status:** `assigned_underwriter_id` is VARCHAR (no formal User table yet).
 
-**What's Missing for Azure AD Integration:**
-```python
-# TODO: Create this table (Phase X)
-class Underwriter(Base):
-    __tablename__ = "underwriters"
-    id = Column(UUID, primary_key=True)
-    email = Column(String(128), unique=True)  # user@gmail.com
-    name = Column(String(128))
-    azure_ad_oid = Column(String(255), unique=True)  # From Azure AD token
-    role = Column(String(32))  # "SENIOR_UW", "JUNIOR_UW", "MANAGER"
-    department = Column(String(64))  # "Property", "Liability", "Motor"
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime)
+**What's Missing:**
+- User authentication (Azure AD bearer tokens)
+- Role-based access control (Senior UW, Junior UW, Manager)
+- Audit trail of WHO made each decision
+- Department-specific workflow routing
 
-# Currently, UnderwriterQueueItem.assigned_underwriter_id is just VARCHAR
-# This needs to be refactored to FK → underwriters.id
-```
-
-**Why It Matters:**
-1. Underwriter Portal (/login) needs Azure AD bearer token validation
-2. Audit trail needs to record WHO made the decision
-3. Human escalation queue needs proper user assignment
-4. Future: RBAC for department-specific workflows
-
-**Next Steps:** Create seed_underwriters.py + add Underwriter model in Phase X
+**When to Add:** When integrating with enterprise authentication system.
 
 ---
 
@@ -761,66 +739,12 @@ SELECT * FROM checkpoint_writes WHERE thread_id = '...';
 
 ### Deployment Options
 
-#### Option 1: Azure Container Instances (ACI)
+See **Project_Documentation/K8s_Deployment_Checklist.md** for production EKS deployment on AWS.
+
+Quick local testing with Docker:
 ```bash
-# Build container
-docker build -f deployment/Dockerfile -t insureai-api:latest .
-
-# Push to Azure Container Registry
-az acr build --registry myregistry --image insureai-api:latest .
-
-# Deploy with docker-compose
-az container create \
-  --resource-group mygroup \
-  --name insureai-api \
-  --image myregistry.azurecr.io/insureai-api:latest \
-  --environment-variables ANTHROPIC_API_KEY=$KEY
-```
-
-#### Option 2: Azure App Service
-```bash
-# Create web app
-az webapp create -g mygroup -p myplan -n insureai-api
-
-# Deploy from local container
-az webapp config container set \
-  -n insureai-api -g mygroup \
-  --docker-custom-image-name myregistry.azurecr.io/insureai-api:latest
-```
-
-#### Option 3: Kubernetes (AKS)
-```yaml
-# deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: insureai-api
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: insureai-api
-  template:
-    metadata:
-      labels:
-        app: insureai-api
-    spec:
-      containers:
-      - name: api
-        image: myregistry.azurecr.io/insureai-api:latest
-        ports:
-        - containerPort: 8081
-        env:
-        - name: ANTHROPIC_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: anthropic-secret
-              key: api-key
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: db-secret
-              key: connection-string
+docker compose up
+# Spins up: PostgreSQL (5432) + API (8081) + Dashboard (8501)
 ```
 
 ---
