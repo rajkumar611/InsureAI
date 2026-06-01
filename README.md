@@ -14,7 +14,7 @@ InsureAI automates routine underwriting decisions while maintaining full auditab
 - **Human-in-the-Loop** — Interrupt/resume workflows for underwriter review
 - **Production Ready** — Async/await, comprehensive testing, Docker deployment
 
-**Tech Stack:** FastAPI · Claude Haiku/Sonnet · LangGraph · PostgreSQL + pgvector · Streamlit
+**Tech Stack:** FastAPI · Claude Haiku/Sonnet · LangGraph · PostgreSQL + pgvector · Streamlit · AWS EKS · Kubernetes
 
 ---
 
