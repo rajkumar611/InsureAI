@@ -1,7 +1,6 @@
 # INSUREAI — Claude Code Project Guide
 
-**Enterprise multi-agent AI insurance underwriting platform with public API.**  
-Built by Raj Kumar (Lead Developer, QBE Insurance NZ) as a portfolio project targeting senior AI engineering roles in Singapore.
+**Enterprise multi-agent AI insurance underwriting platform with public API.**
 
 > **API Access:** Direct underwriter submission via public REST API (no authentication). Perfect for SaaS integration and automated workflows.
 
@@ -1202,6 +1201,5 @@ cd frontend && uv run streamlit run underwriter_portal.py  # Terminal 2
 
 ---
 
-**Last Updated:** 2025-05-30  
-**Maintainer:** Raj Kumar  
-**License:** Proprietary (QBE Insurance NZ)
+**Last Updated:** 2026-06-01  
+**License:** Proprietary

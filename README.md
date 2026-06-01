@@ -341,7 +341,6 @@ Key steps:
 
 ## 📝 Project Info
 
-**Built by:** Raj Kumar (QBE Insurance NZ)  
 **Status:** Production-Ready (All agents, API, UI complete)  
 **Last Updated:** 2026-06-01  
 **License:** Proprietary
