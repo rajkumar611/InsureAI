@@ -276,15 +276,6 @@ Key steps:
 
 ---
 
-## 🔗 Resources
-
-- **Anthropic Docs:** https://docs.anthropic.com/
-- **LangGraph Docs:** https://langchain-ai.github.io/langgraph/
-- **FastAPI:** https://fastapi.tiangolo.com/
-- **Streamlit:** https://docs.streamlit.io/
-
----
-
 ## 🚧 Future Enhancements (Roadmap)
 
 ### Phase 4+: Platform Expansion

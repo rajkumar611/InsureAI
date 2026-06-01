@@ -15,6 +15,7 @@
 - **[Key Workflows](#key-workflows)** — End-to-end flows
 - **[Development](#development)** — How to extend
 - **[Deployment](#deployment)** — Production checklist
+- **[Future Enhancements](#-future-enhancements-phase-4)** — Phase 4+ features and roadmap
 
 ---
 
@@ -1140,24 +1141,7 @@ cd frontend && uv run streamlit run underwriter_portal.py  # Terminal 2
 
 ---
 
-## 📞 Support
-
-**Code Questions:** Consult the relevant agent's docstring + `agent.py` file.
-
-**Architecture Questions:** See **Architecture** section above.
-
-**Deployment Questions:** See **Deployment** section above.
-
-**Bug Reports:** Check **Troubleshooting** first, then open GitHub issue.
-
----
-
-## 📚 Further Reading
-
-- **README.md** — User-facing guide (quickstart, endpoints, concepts)
-- **backend/scripts/admin/README.md** — Admin utilities
-- **Anthropic Docs:** https://docs.anthropic.com/ (models, API, SDK)
-- **LangGraph Docs:** https://langchain-ai.github.io/langgraph/ (workflow, checkpointing)
+📧 **Contact:** crajkumar.6@gmail.com
 
 ---
 
