@@ -297,11 +297,45 @@ Key steps:
 
 ---
 
+## 🚧 Future Enhancements (Roadmap)
+
+### Phase 4+: Platform Expansion
+
+| Feature | Purpose | Complexity |
+|---------|---------|-----------|
+| **Broker Portal + API Keys** | Self-service broker registration, API key generation + rotation, usage analytics | Medium |
+| **Subnet Routing for External IPs** | Dedicated subnet configuration for LoadBalancer services, static IP pools | Medium |
+| **LangSmith Integration** | Real-time tracing + debugging of agent execution, prompt testing framework | Medium |
+| **MCP Servers (Claims Data)** | Model Context Protocol integration with external claims databases (RMS, ICBC) | High |
+| **Real-Time Notifications** | WebSocket support for underwriter portal (live updates on escalations) | Medium |
+| **Document Vision** | Claude's vision API for image extraction (tables, charts, signatures) | Medium |
+| **Observability Stack** | Prometheus metrics + Grafana dashboards (latency, token usage, decision distribution) | Medium |
+| **Webhook Callbacks** | Outbound notifications on submission completion (to broker systems) | Low |
+| **Prompt A/B Testing** | Framework for testing prompt versions with submission sampling | Low |
+| **Multi-Language Support** | Document processing in NZ English, Australian English, Te Reo Māori | High |
+| **Risk Database Integration** | Real-time hazard data from external providers (GIS, flood models) | High |
+| **Custom Reporting** | Export submission data, cost breakdowns, underwriter performance reports | Low |
+| **Token Caching** | LLM prompt caching for frequently-used reference documents | Low |
+| **Advanced Rate Limiting** | Token-based limits (not just request count) + tiered pricing tiers | Medium |
+
+### Why These Matter
+
+- **Broker Portal** → Multi-tenant platform (SaaS scaling)
+- **LangSmith** → Debug agent failures, optimize prompts, audit decisions
+- **MCP Servers** → Real-time external data integration (not static databases)
+- **Observability** → Production monitoring + cost optimization
+- **Vision** → Unlocks scanned documents (PDFs, images)
+- **Webhooks** → Async notification to broker systems
+
+---
+
 ## ⚠️ Known Limitations
 
 - **Underwriter Authentication:** Placeholder only (no Azure AD integration yet)
 - **Single Instance:** Rate limiting via in-memory store (use Redis for multiple instances)
 - **Streamlit UI:** MVP dashboard (production would use React)
+- **Static Data:** Claims data seeded, not live integration with external systems
+- **No Document Vision:** Currently text-only processing
 
 ---
 

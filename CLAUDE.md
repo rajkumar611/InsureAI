@@ -92,6 +92,248 @@ uv run pytest backend/tests -v
 
 ---
 
+## 🚧 Future Enhancements (Phase 4+)
+
+### Broker Portal & Multi-Tenancy
+**Goal:** Self-service platform for external brokers to submit policies
+
+```
+Features:
+- Broker self-registration (name, company, contact)
+- API key generation + rotation
+- Usage dashboard (submissions/month, cost, success rate)
+- Rate limiting per broker tier (bronze/silver/gold)
+- Bulk submission CSV upload
+```
+
+**Why:** SaaS scaling — currently single-user underwriter portal
+
+---
+
+### LangSmith Integration
+**Goal:** Real-time tracing + debugging of agent execution
+
+```
+Integrations:
+- Trace every LLM call with inputs/outputs
+- Track decision tree (which rules fired, which agent made final decision)
+- A/B test prompt versions with submission sampling
+- Debug failures (which step failed, why)
+- Performance metrics (latency per agent, token efficiency)
+```
+
+**Why:** Production debugging + prompt optimization
+
+---
+
+### MCP Servers for External Data
+**Goal:** Real-time integration with external claims databases via Model Context Protocol
+
+```
+Targets:
+- RMS (Risk Management Solutions) — hazard data
+- ICBC (International Bureau of Cargo Insurers) — fraud data
+- GIS databases — flood plains, seismic zones, bushfire regions
+- Regulatory databases — sanctions lists, compliance checks
+
+Pattern:
+- Define MCP server interface (request hazard data, verify customer, check fraud)
+- LangGraph calls MCP server as a node
+- Results cached + logged to cost_ledger (MCP calls treated as LLM calls)
+```
+
+**Why:** Real-time data beats static seeding. Unlocks external risk sources.
+
+---
+
+### Advanced Observability
+**Goal:** Production monitoring stack
+
+```
+Components:
+- Prometheus exporter for metrics
+  * Pipeline latency (by agent, by class of business)
+  * Token usage (input/output, cost per decision)
+  * Decision distribution (ACCEPT %, REFER %, DECLINE %)
+  * Queue depth + SLA compliance
+  
+- Grafana dashboards
+  * Cost per submission over time
+  * Agent performance comparison
+  * Underwriter queue health
+  
+- Structured logging (JSON to ELK stack)
+  * Every agent execution logged with inputs/outputs
+  * Decision reasoning captured
+  * Errors + retries tracked
+```
+
+**Why:** Understand system behavior in production. Optimize costs.
+
+---
+
+### Document Vision (Images + OCR)
+**Goal:** Support scanned documents, PDFs with images
+
+```
+Implementation:
+- Use Claude's vision API in document_ingestion_agent
+- Extract text from images, tables, charts
+- Validate signature presence (compliance check)
+- Handle multi-page documents (parallel processing per page)
+```
+
+**Why:** Most insurance documents are scanned PDFs, not plain text.
+
+---
+
+### Subnet Masking for External IPs
+**Goal:** Dedicated subnet configuration for LoadBalancer services
+
+```
+Current Issue:
+- ELB auto-discovers subnets via tags
+- No control over which subnets get external IPs
+- IPs assigned from AWS pool (not static)
+
+Solution:
+- Create dedicated public subnet for LoadBalancer services
+- Tag with kubernetes.io/role/external-elb
+- Optional: Reserve Elastic IPs for static addresses
+- Provides IP whitelist capability for brokers
+```
+
+**Why:** IP whitelisting + network isolation for production
+
+---
+
+### Webhook Callbacks
+**Goal:** Async notification to broker systems
+
+```
+Pattern:
+- Submission completes → trigger webhook
+- POST to broker's URL with decision + pricing + cost
+- Exponential backoff retry logic
+- Webhook signing (HMAC SHA256) for security
+- Webhook history in dashboard (success/failure)
+```
+
+**Why:** Brokers integrate without polling. Decouples broker system from InsureAI.
+
+---
+
+### Advanced Rate Limiting
+**Goal:** Token-based limits + tiered pricing
+
+```
+Current:
+- 10 requests/day per broker (crude)
+
+Future:
+- Token bucket: measure by LLM token usage, not request count
+  * Bronze tier: 1M tokens/month ($50)
+  * Silver tier: 10M tokens/month ($400)
+  * Gold tier: unlimited ($5k/month)
+  
+- Priority queue: high-tier brokers jump queue
+
+- Cost attribution: each broker sees their cost breakdown
+```
+
+**Why:** Fair pricing (token usage = cost) + incentivizes efficiency
+
+---
+
+### Prompt A/B Testing Framework
+**Goal:** Test prompt variations against submission sample
+
+```
+Pattern:
+- Define prompt variants (v1.0, v1.1)
+- Route % of submissions to each variant
+- Measure outcomes (ACCEPT rate, confidence, cost)
+- Statistical test: chi-squared goodness-of-fit
+- Auto-promote winner to production
+```
+
+**Why:** Data-driven prompt optimization
+
+---
+
+### Multi-Language Support
+**Goal:** Process documents in English, Te Reo Māori, other NZ languages
+
+```
+Implementation:
+- Detect language in document_ingestion_agent
+- Use language-specific prompts (from prompt_registry)
+- Translate output to English for downstream agents
+- Track submissions by language (analytics)
+```
+
+**Why:** Accessibility + Māori language rights (NZ regulatory trend)
+
+---
+
+### Real-Time Notifications
+**Goal:** WebSocket support for underwriter portal
+
+```
+Features:
+- Live queue updates (new escalation → instant notification)
+- Cost dashboard real-time updates
+- Decision feedback loop (show underwriter impact on cost/timing)
+- Streaming LLM results (show reasoning as it's generated)
+```
+
+**Why:** Better UX for high-volume underwriters
+
+---
+
+### Custom Reporting
+**Goal:** Export + analytics for underwriters + management
+
+```
+Reports:
+- Submission volume (daily, weekly, monthly trends)
+- Cost breakdown (by agent, by class of business, by jurisdiction)
+- Decision distribution (ACCEPT %, REFER %, DECLINE %)
+- Underwriter performance (queue depth, SLA compliance, overrides)
+- Fraud detection (claims flagged, patterns identified)
+
+Export formats:
+- CSV for Excel
+- PDF for stakeholders
+- Scheduled email delivery
+```
+
+**Why:** Business intelligence + compliance reporting
+
+---
+
+### Implementation Priority
+
+**Phase 4 (High Impact, Medium Effort):**
+1. LangSmith integration (debug production issues)
+2. Subnet masking (production networking)
+3. Observability stack (understand costs)
+
+**Phase 5 (High Impact, High Effort):**
+1. MCP servers for external data
+2. Broker portal + multi-tenancy
+3. Document vision (scanned documents)
+
+**Phase 6+ (Nice-to-Have):**
+1. Webhook callbacks
+2. Advanced rate limiting
+3. Prompt A/B testing
+4. Multi-language support
+5. Real-time WebSocket notifications
+6. Custom reporting
+
+---
+
 ## 🏗️ Architecture
 
 ### High-Level Flow
